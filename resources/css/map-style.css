@@ -1,0 +1,278 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+}
+
+#map {
+    height: 100vh;
+    width: 100%;
+    z-index: 1;
+}
+
+#year-slider {
+    width: 100%;
+}
+
+/* Legend */
+#map-legend {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+    display: none;
+}
+
+#map-legend h6 {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    text-transform: uppercase;
+    color: #555;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 3px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 3px;
+    font-size: 13px;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    display: inline-block;
+}
+
+/* Custom Marker Pins - Legacy support if needed, but we use callouts now */
+.marker-pin {
+    width: 30px;
+    height: 30px;
+    border-radius: 50% 50% 50% 0;
+    background: #c30b82;
+    position: absolute;
+    transform: rotate(-45deg);
+    left: 50%;
+    top: 50%;
+    margin: -15px 0 0 -15px;
+    box-shadow: -3px 5px 5px rgba(0, 0, 0, 0.3);
+}
+
+.marker-pin::after {
+    content: '';
+    width: 24px;
+    height: 24px;
+    margin: 3px 0 0 3px;
+    background: #fff;
+    position: absolute;
+    border-radius: 50%;
+}
+
+.custom-div-icon i {
+    position: absolute;
+    width: 22px;
+    font-size: 22px;
+    left: 0;
+    right: 0;
+    margin: 10px auto;
+    text-align: center;
+}
+
+/* Popup Styles */
+.custom-popup .person-name {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 2px;
+}
+
+.custom-popup .event-details {
+    margin-bottom: 4px;
+}
+
+.custom-popup .event-year {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.custom-popup .event-place {
+    font-size: 0.9em;
+    color: #666;
+    font-style: italic;
+}
+
+/* Loading Overlay */
+#loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.7);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.spinner {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Map Container - Replaces inline styles */
+.time-map-container {
+    position: relative;
+    height: 600px;
+    width: 100%;
+    border: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Override for fullscreen - allows expansion */
+.wt-fullscreen-container:fullscreen .time-map-container,
+.wt-fullscreen-container:-webkit-full-screen .time-map-container,
+.wt-fullscreen-container:-moz-full-screen .time-map-container,
+.wt-fullscreen-container:-ms-fullscreen .time-map-container {
+    height: auto !important;
+    min-height: 0 !important;
+    flex: 1 1 0% !important;
+    border: none;
+}
+
+.wt-fullscreen-container:fullscreen #map,
+.wt-fullscreen-container:-webkit-full-screen #map,
+.wt-fullscreen-container:-moz-full-screen #map,
+.wt-fullscreen-container:-ms-fullscreen #map {
+    flex: 1 1 auto;
+    height: auto !important;
+}
+
+/* Fullscreen Active State adjustments - Enforce Flexbox */
+.wt-fullscreen-container:fullscreen,
+.wt-fullscreen-container:-webkit-full-screen,
+.wt-fullscreen-container:-moz-full-screen,
+.wt-fullscreen-container:-ms-fullscreen {
+    display: flex !important;
+    flex-direction: column !important;
+    background: white !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+}
+
+
+/* Smooth Marker Animation */
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+    transition: transform 0.5s linear;
+}
+
+/* Callout Pin Style (Dot + Bubble) */
+.callout-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Wrapper is centered on the coordinate. Dot will be at center. Bubble above. */
+    width: 0;
+    height: 0;
+}
+
+.callout-dot {
+    width: 14px;
+    height: 14px;
+    background-color: #007bff;
+    /* Blue dot */
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    position: absolute;
+    top: -7px;
+    /* Center vertically on 0 */
+    left: -7px;
+    /* Center horizontally on 0 */
+    z-index: 10;
+}
+
+.callout-bubble {
+    background: #fff;
+    border: 1px solid #999;
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    color: #333;
+    font-weight: bold;
+
+    position: absolute;
+    bottom: 12px;
+    /* Position above the dot */
+    left: 50%;
+    transform: translateX(-50%);
+    /* Center horizontally */
+    z-index: 20;
+    min-width: 80px;
+    pointer-events: auto;
+    /* Ensure clickable */
+}
+
+.callout-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    margin-left: -6px;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #fff;
+    /* For a border effect on the arrow, we can use filter or a slightly larger pseudo-element behind it, but simple white is fine for now */
+    filter: drop-shadow(0 1px 0px #999);
+}
+
+.callout-bubble .years {
+    font-size: 0.85em;
+    color: #666;
+    display: block;
+    margin-top: 0px;
+    font-weight: normal;
+}
+
+/* Popup Thumbnail */
+.popup-thumbnail {
+    max-width: 50px;
+    max-height: 50px;
+    float: left;
+    margin-right: 10px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}

@@ -1,0 +1,81 @@
+<?php
+
+declare(strict_types=1);
+
+use Fisharebest\Webtrees\I18N;
+use Fisharebest\Webtrees\Individual;
+use Fisharebest\Webtrees\Tree;
+
+/**
+ * @var Individual|null $individual
+ * @var string          $map
+ * @var string          $title
+ * @var Tree            $tree
+ * @var string          $direction
+ */
+
+?>
+
+<h2 class="wt-page-title">
+    <?= $title ?>
+</h2>
+
+<form method="post"
+    action="<?= route(Fisharebest\Webtrees\Module\Custom\TimeTravelMap\Module::class . '::view', ['tree' => $tree->name()]) ?>"
+    class="wt-page-options wt-page-options-time-travel-map d-print-none">
+    <div class="row">
+        <label class="col-sm-3 col-form-label wt-page-options-label" for="xref">
+            <?= I18N::translate('Individual') ?>
+        </label>
+        <div class="col-sm-9 wt-page-options-value">
+            <?= view('components/select-individual', ['name' => 'xref', 'individual' => $individual, 'tree' => $tree, 'required' => true]) ?>
+        </div>
+    </div>
+
+    <div class="row">
+        <label class="col-sm-3 col-form-label wt-page-options-label" for="direction">
+            <?= I18N::translate('Mode') ?>
+        </label>
+        <div class="col-sm-9 wt-page-options-value">
+            <select name="direction" id="direction" class="form-select">
+                <option value="UP" <?= $direction === 'UP' ? 'selected' : '' ?>>
+                    <?= I18N::translate('Ancestors (Backward in Time)') ?>
+                </option>
+                <option value="DOWN" <?= $direction === 'DOWN' ? 'selected' : '' ?>>
+                    <?= I18N::translate('Descendants (Forward in Time)') ?>
+                </option>
+            </select>
+        </div>
+    </div>
+
+    <div class="row">
+        <label class="col-sm-3 col-form-label wt-page-options-label" for="generations">
+            <?= I18N::translate('Generations') ?>
+        </label>
+        <div class="col-sm-9 wt-page-options-value">
+            <select name="generations" id="generations" class="form-select">
+                <?php for ($i = 3; $i <= 10; $i++): ?>
+                    <option value="<?= $i ?>" <?= $generations == $i ? 'selected' : '' ?>>
+                        <?= $i ?>
+                    </option>
+                <?php endfor; ?>
+                <option value="99" <?= $generations == 99 ? 'selected' : '' ?>>
+                    <?= I18N::translate('All') ?>
+                </option>
+            </select>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-sm-3 wt-page-options-label"></div>
+        <div class="col-sm-9 wt-page-options-value">
+            <input class="btn btn-primary" type="submit" value="<?= I18N::translate('view') ?>">
+        </div>
+    </div>
+
+    <?= csrf_field() ?>
+</form>
+
+<div class="wt-ajax-load wt-page-content">
+    <?= $map ?>
+</div>

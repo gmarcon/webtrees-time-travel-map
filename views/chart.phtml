@@ -1,0 +1,150 @@
+<?php
+
+declare(strict_types=1);
+
+use Fisharebest\Webtrees\I18N;
+
+/**
+ * @var string $data_url
+ * @var string $direction
+ * @var string $tree_name
+ * @var string $xref
+ * @var object $leaflet_config
+ */
+
+?>
+
+<div class="row">
+    <div class="col-12">
+        <?php if (empty($xref)): ?>
+            <div class="alert alert-info">
+                <?= I18N::translate('Please select a starting individual and click "view" to begin.') ?>
+            </div>
+        <?php else: ?>
+            <div id="time-travel-wrapper" class="wt-fullscreen-container" style="position: relative; background: white;">
+                <!-- Map Container -->
+                <div id="map-container" class="time-map-container">
+                    <div id="map" class="wt-map" style="height: 100%; width: 100%;"></div>
+                    <div id="loading-overlay">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 10px;">Loading data...</p>
+                    </div>
+                </div>
+
+                <!-- Timeline Controls (Below Map) -->
+                <div id="controls-container" class="mt-2 p-3 border rounded shadow-sm bg-light">
+                    <div class="row align-items-center mb-2">
+                        <div class="col-md-12">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="autozoom-check">
+                                <label class="form-check-label"
+                                    for="autozoom-check"><?= I18N::translate('Autozoom') ?></label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="show-parents-check">
+                                <label class="form-check-label"
+                                    for="show-parents-check"><?= I18N::translate('Show Parents Lines') ?></label>
+                            </div>
+                            <!--<div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="show-heatmap-check">
+                                <label class="form-check-label"
+                                    for="show-heatmap-check"><?= I18N::translate('Show Heatmap') ?></label>
+                            </div>-->
+                        </div>
+                    </div>
+                    <div class="row align-items-center">
+                        <div class="col-md-2">
+                            <label for="year-slider" class="form-label mb-0 fw-bold">
+                                <?= I18N::translate('Year') ?>: <span id="year-display" class="text-primary">----</span>
+                            </label>
+                        </div>
+                        <div class="col-md-7">
+                            <input type="range" id="year-slider" class="form-range" min="1700" max="2030" step="1"
+                                value="1800">
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex justify-content-end gap-2">
+                                <div class="btn-group btn-group-sm">
+                                    <button id="reverse-btn" class="btn btn-outline-secondary"
+                                        style="transform: scaleX(-1);" title="<?= I18N::translate('Reverse') ?>">▶</button>
+                                    <button id="pause-btn" class="btn btn-outline-secondary"
+                                        title="<?= I18N::translate('Pause') ?>">⏸</button>
+                                    <button id="play-btn" class="btn btn-outline-secondary"
+                                        title="<?= I18N::translate('Play') ?>">▶</button>
+                                </div>
+                                <select id="speed-select" class="form-select form-select-sm" style="width: auto;">
+                                    <option value="1" selected>1x</option>
+                                    <option value="2">2x</option>
+                                    <option value="5">5x</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<?php if (!empty($xref)): ?>
+    <!-- Leaflet & Dependencies (Using CDN for simplicity, though Core might have them) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <style>
+        <?= file_get_contents(__DIR__ . '/../resources/css/map-style.css') ?>
+
+        /* Custom Control Style matching Leaflet controls */
+        .leaflet-control-custom-fullscreen {
+            background-color: #fff;
+            cursor: pointer;
+            width: 30px;
+            /* Standard Leaflet size */
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: none;
+            /* In case it gets grouped */
+        }
+
+        .leaflet-control-custom-fullscreen:hover {
+            background-color: #f4f4f4;
+        }
+
+        .leaflet-control-custom-fullscreen svg {
+            width: 18px;
+            /* Standard icon size */
+            height: 18px;
+            fill: #333;
+        }
+
+        /* Override default link decorations inherited from Webtrees if any */
+        .leaflet-bar a.leaflet-control-custom-fullscreen {
+            text-decoration: none;
+            color: #333;
+        }
+    </style>
+
+    <script>
+        // Configuration
+        const DATA_URL = <?= json_encode($data_url) ?>;
+        const TREE_NAME = <?= json_encode($tree_name) ?>;
+        const ROOT_ID = <?= json_encode($xref) ?>;
+        const DIRECTION = <?= json_encode($direction) ?>;
+        const GENERATIONS = <?= json_encode($generations) ?>;
+
+        // Use icons from LeafletJsService
+        // It returns a string with both ENTER and EXIT icons wrapped in spans.
+        // We might want to toggle visibility or just use CSS to show correct one.
+        // But for simplicity, we insert the HTML provided.
+        // Usually Webtrees switches the visible icon via CSS .fullscreen class on container.
+        const FULLSCREEN_ICON_HTML = `<?= $leaflet_config->icons['fullScreen'] ?? '⛶' ?>`;
+
+        // Inject JS
+        <?= file_get_contents(__DIR__ . '/../resources/js/time-map.js') ?>
+    </script>
+<?php endif; ?>
