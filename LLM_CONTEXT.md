@@ -11,7 +11,7 @@
 ## 2. Technical Environment
 -   **Platform**: webtrees 2.2.x (Latest stable).
 -   **Language**: PHP 8.3+ (Strict typing `declare(strict_types=1);` required).
--   **Frontend**: Leaflet.js (Map), OpenStreetMap (Tiles), Leaflet.heat (Heatmap). Plain JS (ES6+) for logic.
+-   **Frontend**: Leaflet.js (Map), OpenStreetMap (Tiles). Plain JS (ES6+) for logic.
 -   **Namespace**: `Fisharebest\Webtrees\Module\Custom\TimeTravelMap`
 -   **Database**: NEVER use raw SQL. Use `Fisharebest\Webtrees\DB` or Webtrees Object methods (e.g., `$individual->facts()`).
 
@@ -28,7 +28,7 @@ The module is located in: `modules_v4/time-travel-map/`
 
 ### Views & Resources
 -   **Template**: `views/chart.phtml` (Main UI container, Fullscreen wrapper).
--   **Assets**: `resources/js/time-map.js` (Map logic), `resources/css/map-style.css`, `resources/js/leaflet-heat.js`.
+-   **Assets**: `resources/js/time-map.js` (Map logic), `resources/css/map-style.css`.
 
 ## 4. Data Logic & JSON Format
 The `MapData` controller returns a JSON object containing metadata and a list of individuals.

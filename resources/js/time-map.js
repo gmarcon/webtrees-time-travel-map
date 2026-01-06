@@ -88,14 +88,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const speedSelect = document.getElementById('speed-select');
     const loadingOverlay = document.getElementById('loading-overlay');
     const parentsCheck = document.getElementById('show-parents-check');
-    const heatmapCheck = document.getElementById('show-heatmap-check');
     const autozoomCheck = document.getElementById('autozoom-check');
 
     let individuals = [];
     let visibleMarkers = {}; // Map of id -> L.marker
     let displacementLines = {}; // Map of id -> L.polyline
     let parentLines = []; // Array of L.polyline
-    let heatmapLayer = null;
+
     let isPlaying = false;
     let playDirection = 1;
     let minYear = 1700;
@@ -418,16 +417,6 @@ document.addEventListener('DOMContentLoaded', function () {
             clearParentLines();
         }
 
-        // 5. Handle Heatmap
-        if (heatmapCheck && heatmapCheck.checked) {
-            drawHeatmap(currentActive);
-        } else {
-            if (heatmapLayer) {
-                map.removeLayer(heatmapLayer);
-                heatmapLayer = null;
-            }
-        }
-
         // 6. Handle Autozoom
         if (autozoomCheck && autozoomCheck.checked) {
             if (activeCoords.length > 0) {
@@ -516,24 +505,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function drawHeatmap(activePeople) {
-        if (!L.heatLayer) {
-            console.warn('Leaflet.heat not loaded');
-            return;
-        }
 
-        const points = activePeople.map(ap => [ap.pos.lat, ap.pos.lng, 1.0]);
-
-        if (heatmapLayer) {
-            heatmapLayer.setLatLngs(points);
-        } else {
-            heatmapLayer = L.heatLayer(points, {
-                radius: 35,
-                blur: 20,
-                maxZoom: 10,
-            }).addTo(map);
-        }
-    }
 
     // Playback Logic
     function step() {
@@ -601,11 +573,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    if (heatmapCheck) {
-        heatmapCheck.addEventListener('change', () => {
-            updateMap(parseInt(slider.value));
-        });
-    }
+
 
     if (autozoomCheck) {
         autozoomCheck.addEventListener('change', () => {
