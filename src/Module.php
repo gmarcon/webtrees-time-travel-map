@@ -52,7 +52,15 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
      */
     public function customModuleVersion(): string
     {
-        return '1.0.0';
+        return '1.0.1';
+    }
+
+    /**
+     * @return string
+     */
+    public function customModuleLatestVersion(): string
+    {
+        return $this->customModuleVersion();
     }
 
     /**
@@ -61,14 +69,6 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
     public function customModuleLatestVersionUrl(): string
     {
         return 'https://raw.githubusercontent.com/gmarcon/webtrees-time-travel-map/refs/heads/main/latest-version.txt';
-    }
-
-    /**
-     * @return string
-     */
-    public function customModuleLatestVersion(): string
-    {
-        return '1.0.0';
     }
 
     /**
