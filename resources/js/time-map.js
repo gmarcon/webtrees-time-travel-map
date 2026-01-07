@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const loadingOverlay = document.getElementById('loading-overlay');
     const parentsCheck = document.getElementById('show-parents-check');
     const autozoomCheck = document.getElementById('autozoom-check');
+    const calloutCheck = document.getElementById('show-callout-check');
 
     let individuals = [];
     let visibleMarkers = {}; // Map of id -> L.marker
@@ -119,16 +120,17 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Create callout icon
-    function createCalloutIcon(person) {
+    function createCalloutIcon(person, showCallout) {
         const birth = person.yearFrom || '?';
         const death = person.yearTo || '?';
+        const displayStyle = showCallout ? '' : 'display:none;';
 
         return L.divIcon({
             className: 'custom-callout-icon',
             // Structure: Wrapper > Dot + Bubble
             html: `<div class="callout-wrapper">
                      <div class="callout-dot"></div>
-                     <div class="callout-bubble">
+                     <div class="callout-bubble" style="${displayStyle}">
                         ${person.name}<span class="years">(${birth}-${death})</span>
                      </div>
                    </div>`,
@@ -280,6 +282,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // 1. Identify Valid People & Locations
         const currentActive = []; // { person, pos: {lat, lng, event} }
         const coordsMap = {}; // "lat,lng" -> [ {person, pos} ]
+        const showCallout = calloutCheck ? calloutCheck.checked : true;
 
         individuals.forEach(person => {
             const birth = person.yearFrom || -9999;
@@ -383,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             } else {
                 const marker = L.marker(newLatLng, {
-                    icon: createCalloutIcon(person)
+                    icon: createCalloutIcon(person, showCallout)
                 });
                 marker.on('click', () => {
                     const content = buildPopupContent(person);
@@ -512,6 +515,22 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function updateCalloutVisibility() {
+        // Toggle visibility of callout bubbles based on checkbox state
+        const showCallout = calloutCheck ? calloutCheck.checked : true;
+
+        Object.keys(visibleMarkers).forEach(id => {
+            const marker = visibleMarkers[id];
+            const el = marker.getElement();
+            if (el) {
+                const bubble = el.querySelector('.callout-bubble');
+                if (bubble) {
+                    bubble.style.display = showCallout ? '' : 'none';
+                }
+            }
+        });
+    }
+
 
 
     // Playback Logic
@@ -585,6 +604,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (autozoomCheck) {
         autozoomCheck.addEventListener('change', () => {
             updateMap(parseInt(slider.value));
+        });
+    }
+
+    if (calloutCheck) {
+        calloutCheck.addEventListener('change', () => {
+            updateCalloutVisibility();
         });
     }
 

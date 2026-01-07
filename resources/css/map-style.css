@@ -262,6 +262,10 @@ body {
     font-weight: normal;
 }
 
+.callout-bubble.hidden {
+    display: none;
+}
+
 /* Popup Thumbnail */
 .popup-thumbnail {
     max-width: 50px;
