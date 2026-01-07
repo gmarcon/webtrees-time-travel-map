@@ -17,6 +17,7 @@ use Fisharebest\Webtrees\Module\ModuleChartInterface;
 use Fisharebest\Webtrees\Module\ModuleConfigInterface;
 use Fisharebest\Webtrees\Module\ModuleConfigTrait;
 use Fisharebest\Webtrees\Module\ModuleCustomInterface;
+use Fisharebest\Webtrees\Module\ModuleCustomTrait;
 use Fisharebest\Webtrees\Registry;
 use Fisharebest\Webtrees\Validator;
 use Psr\Http\Message\ResponseInterface;
@@ -30,6 +31,7 @@ use function view;
  */
 class Module extends AbstractModule implements ModuleCustomInterface, ModuleChartInterface, ModuleConfigInterface
 {
+    use ModuleCustomTrait;
     use ModuleConfigTrait;
 
     public const DEFAULT_INDI_TAGS = ['BIRT', 'CHR', 'BAPM', 'DEAT', 'BURI', 'CREM', 'RESI', 'EDUC', 'OCCU', 'CENS', 'EVEN'];
@@ -66,13 +68,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
         return '1.0.2';
     }
 
-    /**
-     * @return string
-     */
-    public function customModuleLatestVersion(): string
-    {
-        return $this->customModuleVersion();
-    }
+
 
     /**
      * @return string
