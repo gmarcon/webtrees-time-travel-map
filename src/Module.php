@@ -100,7 +100,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
         return new Menu(
             $this->title(),
             $this->chartUrl($individual),
-            'chart-time-travel-map'
+            'menu-chart-pedigreemap'
         );
     }
 
@@ -116,7 +116,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
         return new Menu(
             $this->title(),
             $this->chartUrl($individual),
-            'chart-time-travel-map'
+            'menu-chart-pedigreemap'
         );
     }
 
@@ -127,7 +127,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
      */
     public function chartMenuClass(): string
     {
-        return 'chart-time-travel-map';
+        return 'menu-chart-pedigreemap';
     }
 
     /**
