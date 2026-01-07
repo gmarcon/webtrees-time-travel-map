@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+use Fisharebest\Webtrees\Http\RequestHandlers\ControlPanel;
+use Fisharebest\Webtrees\Http\RequestHandlers\ModulesAllPage;
+use Fisharebest\Webtrees\I18N;
+
+/**
+ * @var array<string> $indi_tags
+ * @var array<string> $fam_tags
+ * @var string        $title
+ * @var string        $module
+ */
+?>
+
+<?= view('components/breadcrumbs', ['links' => [route(ControlPanel::class) => I18N::translate('Control panel'), route(ModulesAllPage::class) => I18N::translate('Modules'), $title]]) ?>
+
+<h1>
+    <?= $title ?>
+</h1>
+
+<form method="post" action="<?= $module->getConfigLink() ?>">
+    <h2>
+        <?= I18N::translate('Individual events') ?>
+    </h2>
+    <div class="row mb-3">
+        <div class="col-sm-12">
+            <?= view('components/select', ['name' => 'indi_tags[]', 'id' => 'indi_tags', 'selected' => $indi_tags, 'options' => $indi_options, 'class' => 'tom-select']) ?>
+        </div>
+    </div>
+
+    <h2>
+        <?= I18N::translate('Family events') ?>
+    </h2>
+    <div class="row mb-3">
+        <div class="col-sm-12">
+            <?= view('components/select', ['name' => 'fam_tags[]', 'id' => 'fam_tags', 'selected' => $fam_tags, 'options' => $fam_options, 'class' => 'tom-select']) ?>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        <?= view('icons/save') ?>
+        <?= I18N::translate('save') ?>
+    </button>
+
+    <a href="<?= route(ControlPanel::class) ?>" class="btn btn-secondary">
+        <?= view('icons/cancel') ?>
+        <?= I18N::translate('cancel') ?>
+    </a>
+
+    <?= csrf_field() ?>
+</form>

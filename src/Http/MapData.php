@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Fisharebest\Webtrees\Module\Custom\TimeTravelMap\Http;
 
+use Fisharebest\Webtrees\Module\Custom\TimeTravelMap\Module;
 use Fisharebest\Webtrees\Module\Custom\TimeTravelMap\Services\TreeWalker;
 use Fisharebest\Webtrees\Registry;
 use Psr\Http\Message\ResponseInterface;
@@ -27,7 +28,6 @@ class MapData implements RequestHandlerInterface
             $direction = \Fisharebest\Webtrees\Validator::queryParams($request)->string('direction', 'UP');
             $generations = \Fisharebest\Webtrees\Validator::queryParams($request)->isBetween(3, 100)->integer('generations', 5);
 
-
             if (!$tree) {
                 return response(json_encode(['error' => 'Tree not found']))
                     ->withHeader('Content-Type', 'application/json')->withStatus(404);
@@ -43,8 +43,19 @@ class MapData implements RequestHandlerInterface
             // Check for access rights
             $individual = \Fisharebest\Webtrees\Auth::checkIndividualAccess($individual);
 
+            // Get the properly initialized module instance from the module service
+            $module_service = Registry::container()->get(\Fisharebest\Webtrees\Services\ModuleService::class);
+            $module = $module_service->findByInterface(Module::class)->first(function ($mod) {
+                return $mod instanceof Module;
+            });
+
+            if (!$module) {
+                throw new \Exception('Time Travel Map module not found');
+            }
+
             $walker = new TreeWalker(
-                Registry::container()->get(\Fisharebest\Webtrees\Services\ChartService::class)
+                Registry::container()->get(\Fisharebest\Webtrees\Services\ChartService::class),
+                $module
             );
 
             $individualsData = $walker->getIndividualsData($individual, $direction, $generations);

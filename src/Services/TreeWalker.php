@@ -8,19 +8,23 @@ use Fisharebest\Webtrees\Services\ChartService;
 use Fisharebest\Webtrees\Gedcom;
 use Fisharebest\Webtrees\I18N;
 use Fisharebest\Webtrees\Registry;
+use Fisharebest\Webtrees\Module\Custom\TimeTravelMap\Module;
 use function route;
 
 class TreeWalker
 {
     private ChartService $chart_service;
+    private Module $module;
 
     /**
      * TreeWalker constructor.
      * @param ChartService $chart_service
+     * @param Module       $module
      */
-    public function __construct(ChartService $chart_service)
+    public function __construct(ChartService $chart_service, Module $module)
     {
         $this->chart_service = $chart_service;
+        $this->module = $module;
     }
 
     /**
@@ -156,21 +160,14 @@ class TreeWalker
     private function extractEvents(Individual $person, array &$events): void
     {
         // Relevant tags for INDI
-        $indiTags = array_merge(
-            Gedcom::BIRTH_EVENTS,
-            Gedcom::DEATH_EVENTS,
-            ['RESI', 'BURI', 'EDUC', 'OCCU', 'CENS']
-        );
+        $indiTags = $this->module->getIndiTags();
 
         foreach ($person->facts($indiTags, false, null, true) as $fact) {
             $this->processFact($person, $fact, $events);
         }
 
         // Relevant tags for FAM
-        $famTags = array_merge(
-            Gedcom::MARRIAGE_EVENTS,
-            ['DIV', 'CENS', 'RESI'] // Census and Residence can also be on FAM
-        );
+        $famTags = $this->module->getFamTags();
 
         foreach ($person->spouseFamilies() as $family) {
             foreach ($family->facts($famTags, false, null, true) as $fact) {
@@ -232,63 +229,19 @@ class TreeWalker
 
     private function getEventInfo(string $eventTag): array
     {
-        // Map from GEDCOM tag to Webtrees I18N standard translation keys:
-        $label = $eventTag;
-        switch ($eventTag) {
-            case 'BIRT':
-            case 'INDI:BIRT':
-                $label = I18N::translate('Birth');
-                break;
-            case 'CHR':
-            case 'INDI:CHR':
-                $label = I18N::translate('Christening');
-                break;
-            case 'BAPM':
-            case 'INDI:BAPM':
-                $label = I18N::translate('Baptism');
-                break;
-            case 'MARR':
-            case 'INDI:MARR':
-            case 'FAM:MARR':
-                $label = I18N::translate('Marriage');
-                break;
-            case 'DIV':
-            case 'FAM:DIV':
-                $label = I18N::translate('Divorce');
-                break;
-            case 'RESI':
-            case 'INDI:RESI':
-            case 'FAM:RESI':
-                $label = I18N::translate('Residence');
-                break;
-            case 'DEAT':
-            case 'INDI:DEAT':
-                $label = I18N::translate('Death');
-                break;
-            case 'BURI':
-            case 'INDI:BURI':
-                $label = I18N::translate('Burial');
-                break;
-            case 'CENS':
-            case 'INDI:CENS':
-            case 'FAM:CENS':
-                $label = I18N::translate('Census');
-                break;
-            case 'OCCU':
-            case 'INDI:OCCU':
-                $label = I18N::translate('Occupation');
-                break;
-            case 'EDUC':
-            case 'INDI:EDUC':
-                $label = I18N::translate('Education');
-                break;
-            case 'EVEN':
-            case 'INDI:EVEN':
-                $label = I18N::translate('Event');
-                break;
-            default:
-                $label = $eventTag;
-                break;
+        // Try to get dynamic label from ElementFactory
+        try {
+            $element = Registry::elementFactory()->make($eventTag);
+            if (!$element instanceof \Fisharebest\Webtrees\Elements\UnknownElement) {
+                $label = $element->label();
+            } else {
+                // Try with prefix if not found (though TreeWalker facts usually have clean tags)
+                $element = Registry::elementFactory()->make('INDI:' . $eventTag);
+                $label = $element->label();
+            }
+        } catch (\Throwable $e) {
+            // Fallback
+            $label = $eventTag;
         }
 
         return [

@@ -2,19 +2,38 @@
 
 namespace Fisharebest\Webtrees\Module\Custom\TimeTravelMap;
 
+use Fisharebest\Webtrees\Contracts\ElementInterface;
+use Fisharebest\Webtrees\DB;
+use Fisharebest\Webtrees\Elements\UnknownElement;
+use Fisharebest\Webtrees\FlashMessages;
+use Fisharebest\Webtrees\Gedcom;
 use Fisharebest\Webtrees\I18N;
+use Fisharebest\Webtrees\Tree;
+use Illuminate\Support\Collection;
 use Fisharebest\Webtrees\Individual;
 use Fisharebest\Webtrees\Menu;
 use Fisharebest\Webtrees\Module\AbstractModule;
 use Fisharebest\Webtrees\Module\ModuleChartInterface;
+use Fisharebest\Webtrees\Module\ModuleConfigInterface;
+use Fisharebest\Webtrees\Module\ModuleConfigTrait;
 use Fisharebest\Webtrees\Module\ModuleCustomInterface;
 use Fisharebest\Webtrees\Registry;
+use Fisharebest\Webtrees\Validator;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+use function redirect;
+use function view;
 
 /**
  * Class Module
  */
-class Module extends AbstractModule implements ModuleCustomInterface, ModuleChartInterface
+class Module extends AbstractModule implements ModuleCustomInterface, ModuleChartInterface, ModuleConfigInterface
 {
+    use ModuleConfigTrait;
+
+    public const DEFAULT_INDI_TAGS = ['BIRT', 'CHR', 'BAPM', 'DEAT', 'BURI', 'CREM', 'RESI', 'EDUC', 'OCCU', 'CENS', 'EVEN'];
+    public const DEFAULT_FAM_TAGS = ['MARR', 'DIV', 'CENS', 'RESI', 'EVEN'];
     /**
      * @return string
      */
@@ -180,10 +199,126 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
         Registry::routeFactory()->routeMap()
             ->post(self::class . '::view-post', '/tree/{tree}/time-travel-map/view', Http\MapPage::class);
 
-        // Register GET route for data endpoint
         Registry::routeFactory()->routeMap()
             ->get(self::class . '::data', '/tree/{tree}/time-travel-map/data', Http\MapData::class);
 
         \Fisharebest\Webtrees\View::registerNamespace('modules/time-travel-map', __DIR__ . '/../views/');
+    }
+
+    /**
+     * @return ResponseInterface
+     */
+    public function getAdminAction(): ResponseInterface
+    {
+        $this->layout = 'layouts/administration';
+
+        $magic = '___DEFAULT___';
+
+        $indi_tags = $this->getPreference('indi_tags', $magic);
+        if ($indi_tags === $magic) {
+            $indi_tags = implode(',', self::DEFAULT_INDI_TAGS);
+        }
+
+        $fam_tags = $this->getPreference('fam_tags', $magic);
+        if ($fam_tags === $magic) {
+            $fam_tags = implode(',', self::DEFAULT_FAM_TAGS);
+        }
+
+        return $this->viewResponse('modules/time-travel-map::config', [
+            'indi_tags' => explode(',', $indi_tags),
+            'fam_tags' => explode(',', $fam_tags),
+            'indi_options' => $this->getAllIndiOptions(),
+            'fam_options' => $this->getAllFamOptions(),
+            'title' => $this->title(),
+            'module' => $this,
+        ]);
+    }
+
+    /**
+     * @param ServerRequestInterface $request
+     *
+     * @return ResponseInterface
+     */
+    public function postAdminAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $indi_tags = Validator::parsedBody($request)->array('indi_tags');
+        $fam_tags = Validator::parsedBody($request)->array('fam_tags');
+
+        $this->setPreference('indi_tags', implode(',', $indi_tags));
+        $this->setPreference('fam_tags', implode(',', $fam_tags));
+
+        FlashMessages::addMessage(I18N::translate('The preferences for the module “%s” have been updated.', $this->title()), 'success');
+
+        return redirect($this->getConfigLink());
+    }
+
+    public function getIndiTags(): array
+    {
+        $magic = '___DEFAULT___';
+        $tags = $this->getPreference('indi_tags', $magic);
+
+        if ($tags === $magic) {
+            return self::DEFAULT_INDI_TAGS;
+        }
+
+        if ($tags === '') {
+            return [];
+        }
+
+        $result = explode(',', $tags);
+        return $result;
+    }
+
+    public function getFamTags(): array
+    {
+        $magic = '___DEFAULT___';
+        $tags = $this->getPreference('fam_tags', $magic);
+
+        if ($tags === $magic) {
+            return self::DEFAULT_FAM_TAGS;
+        }
+
+        if ($tags === '') {
+            return [];
+        }
+
+        return explode(',', $tags);
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    /**
+     * @return array<string,string>
+     */
+    private function getAllIndiOptions(): array
+    {
+        $ignore_facts = ['CHAN', 'CHIL', 'FAMC', 'FAMS', 'HUSB', 'SUBM', 'WIFE', 'NAME', 'SEX'];
+
+        return Collection::make(Registry::elementFactory()->make('INDI')->subtags())
+            ->filter(static fn(string $value, string $key): bool => !in_array($key, $ignore_facts, true))
+            ->mapWithKeys(static fn(string $value, string $key): array => [$key => 'INDI:' . $key])
+            ->map(static fn(string $tag): ElementInterface => Registry::elementFactory()->make($tag))
+            ->filter(static fn(ElementInterface $element): bool => !$element instanceof UnknownElement)
+            ->map(static fn(ElementInterface $element, string $tag): string => $element->label() . ' (' . str_replace('INDI:', '', $tag) . ')')
+            ->sort(I18N::comparator())
+            ->all();
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private function getAllFamOptions(): array
+    {
+        $ignore_facts = ['CHAN', 'CHIL', 'FAMC', 'FAMS', 'HUSB', 'SUBM', 'WIFE', 'NAME', 'SEX'];
+
+        return Collection::make(Registry::elementFactory()->make('FAM')->subtags())
+            ->filter(static fn(string $value, string $key): bool => !in_array($key, $ignore_facts, true))
+            ->mapWithKeys(static fn(string $value, string $key): array => [$key => 'FAM:' . $key])
+            ->map(static fn(string $tag): ElementInterface => Registry::elementFactory()->make($tag))
+            ->filter(static fn(ElementInterface $element): bool => !$element instanceof UnknownElement)
+            ->map(static fn(ElementInterface $element, string $tag): string => $element->label() . ' (' . str_replace('FAM:', '', $tag) . ')')
+            ->sort(I18N::comparator())
+            ->all();
     }
 }
