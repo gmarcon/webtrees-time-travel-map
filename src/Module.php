@@ -3,12 +3,9 @@
 namespace Fisharebest\Webtrees\Module\Custom\TimeTravelMap;
 
 use Fisharebest\Webtrees\Contracts\ElementInterface;
-use Fisharebest\Webtrees\DB;
 use Fisharebest\Webtrees\Elements\UnknownElement;
 use Fisharebest\Webtrees\FlashMessages;
-use Fisharebest\Webtrees\Gedcom;
 use Fisharebest\Webtrees\I18N;
-use Fisharebest\Webtrees\Tree;
 use Illuminate\Support\Collection;
 use Fisharebest\Webtrees\Individual;
 use Fisharebest\Webtrees\Menu;
@@ -65,10 +62,8 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
      */
     public function customModuleVersion(): string
     {
-        return '1.0.2';
+        return '1.0.3';
     }
-
-
 
     /**
      * @return string
