@@ -103,6 +103,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let displacementLines = {}; // Map of id -> L.polyline
     let parentLines = []; // Array of L.polyline
 
+    // Cluster Group
+    let markersCluster = L.markerClusterGroup();
+
     let isPlaying = false;
     let playDirection = 1;
     let minYear = 1700;
@@ -301,138 +304,199 @@ document.addEventListener('DOMContentLoaded', function () {
             coordsMap[key].push(wrapper);
         });
 
-        // 2. Calculate Final Positions (Handling Clusters)
-        const finalPositions = {}; // personId -> { lat, lng, isDisplaced, origin: {lat,lng} }
-        const nextClusterState = {};
+        // Clear existing markers/lines from map if switching modes or updating
+        // Logic: activeIds tracks people who SHOULD be on map. 
+        // We will rebuild mostly everything to be safe or update existing.
 
-        Object.keys(coordsMap).forEach(key => {
-            const cluster = coordsMap[key];
-            const originLat = cluster[0].pos.lat;
-            const originLng = cluster[0].pos.lng;
-
-            if (cluster.length === 1) {
-                // Special case: Single person. 
-                // However, to maintain stability if they were previously part of a cluster, 
-                // we should check if we want to reset reset them or keep spiraling.
-                // But usually 1 person = center. 
-                // Let's reset to center if alone.
-                const p = cluster[0];
-                finalPositions[p.person.id] = {
-                    lat: originLat,
-                    lng: originLng,
-                    isDisplaced: false
-                };
-
-                // Clear state for this key (will start fresh next time)
-                // Actually, if a 2nd person comes, we want this person to stay 0?
-                // Yes. So assign index 0.
-                nextClusterState[key] = {};
-                nextClusterState[key][p.person.id] = 0;
-            } else {
-                // Cluster
-                const activePeople = cluster.map(c => c.person);
-                // Cluster: Sort by YearFrom to stabilize order
-                cluster.sort((a, b) => {
-                    const yA = parseInt(a.person.yearFrom) || 0;
-                    const yB = parseInt(b.person.yearFrom) || 0;
-                    if (yA !== yB) return yA - yB;
-                    return a.person.id.localeCompare(b.person.id);
-                });
-
-                cluster.forEach((item, index) => {
-                    // Pass total count for circle calculation
-                    const displaced = getDisplacedCoords(originLat, originLng, index, cluster.length);
-                    finalPositions[item.person.id] = {
-                        lat: displaced.lat,
-                        lng: displaced.lng,
-                        isDisplaced: true,
-                        origin: { lat: originLat, lng: originLng }
-                    };
-                });
+        // Mode Check
+        if (showCallout) {
+            // --- MODE: Displacement (Spider Layout) ---
+            if (map.hasLayer(markersCluster)) {
+                map.removeLayer(markersCluster);
+                markersCluster.clearLayers();
             }
-        });
 
+            // 2. Calculate Final Positions (Handling Clusters manually)
+            const finalPositions = {}; // personId -> { lat, lng, isDisplaced, origin: {lat,lng} }
 
+            Object.keys(coordsMap).forEach(key => {
+                const cluster = coordsMap[key];
+                const originLat = cluster[0].pos.lat;
+                const originLng = cluster[0].pos.lng;
 
-        // 3. Update Markers & Lines
-        const activeIds = new Set(currentActive.map(i => i.person.id));
-        const activeCoords = [];
+                if (cluster.length === 1) {
+                    const p = cluster[0];
+                    finalPositions[p.person.id] = {
+                        lat: originLat,
+                        lng: originLng,
+                        isDisplaced: false
+                    };
+                } else {
+                    // Cluster
+                    cluster.sort((a, b) => {
+                        const yA = parseInt(a.person.yearFrom) || 0;
+                        const yB = parseInt(b.person.yearFrom) || 0;
+                        if (yA !== yB) return yA - yB;
+                        return a.person.id.localeCompare(b.person.id);
+                    });
 
-        // Remove old markers/lines
-        Object.keys(visibleMarkers).forEach(id => {
-            if (!activeIds.has(id)) {
+                    cluster.forEach((item, index) => {
+                        const displaced = getDisplacedCoords(originLat, originLng, index, cluster.length);
+                        finalPositions[item.person.id] = {
+                            lat: displaced.lat,
+                            lng: displaced.lng,
+                            isDisplaced: true,
+                            origin: { lat: originLat, lng: originLng }
+                        };
+                    });
+                }
+            });
+
+            // 3. Update Markers & Lines
+            const activeIds = new Set(currentActive.map(i => i.person.id));
+            const activeCoords = [];
+
+            // Remove old markers/lines
+            Object.keys(visibleMarkers).forEach(id => {
+                if (!activeIds.has(id)) {
+                    map.removeLayer(visibleMarkers[id]);
+                    delete visibleMarkers[id];
+                    if (displacementLines[id]) {
+                        map.removeLayer(displacementLines[id]);
+                        delete displacementLines[id];
+                    }
+                }
+            });
+
+            // Update/Create new
+            currentActive.forEach(item => {
+                const person = item.person;
+                const target = finalPositions[person.id];
+                activeCoords.push([target.lat, target.lng]);
+
+                // Marker
+                const newLatLng = new L.LatLng(target.lat, target.lng);
+                if (visibleMarkers[person.id]) {
+                    const marker = visibleMarkers[person.id];
+                    const oldLatLng = marker.getLatLng();
+                    // Small threshold to avoid jitter
+                    if (oldLatLng.distanceTo(newLatLng) > 1) {
+                        marker.setLatLng(newLatLng);
+                    }
+                    if (!map.hasLayer(marker)) marker.addTo(map);
+                } else {
+                    const marker = L.marker(newLatLng, {
+                        icon: createCalloutIcon(person, true)
+                    });
+                    marker.on('click', () => {
+                        const content = buildPopupContent(person);
+                        marker.bindPopup(content, { maxWidth: 350, minWidth: 250 }).openPopup();
+                    });
+                    marker.addTo(map);
+                    visibleMarkers[person.id] = marker;
+                }
+
+                // Displacement Line
+                if (target.isDisplaced) {
+                    const origin = target.origin;
+                    const linePoints = [[origin.lat, origin.lng], [target.lat, target.lng]];
+
+                    if (displacementLines[person.id]) {
+                        displacementLines[person.id].setLatLngs(linePoints);
+                        if (!map.hasLayer(displacementLines[person.id])) displacementLines[person.id].addTo(map);
+                    } else {
+                        const line = L.polyline(linePoints, {
+                            color: '#666',
+                            weight: 1,
+                            opacity: 0.6
+                        }).addTo(map);
+                        displacementLines[person.id] = line;
+                    }
+                } else {
+                    // Remove line if exists
+                    if (displacementLines[person.id]) {
+                        map.removeLayer(displacementLines[person.id]);
+                        delete displacementLines[person.id];
+                    }
+                }
+            });
+
+            // 4. Handle Parent Lines
+            if (parentsCheck && parentsCheck.checked) {
+                drawParentLines(currentActive, finalPositions);
+            } else {
+                clearParentLines();
+            }
+
+            // 6. Handle Autozoom
+            if (autozoomCheck && autozoomCheck.checked) {
+                if (activeCoords.length > 0) {
+                    const bounds = L.latLngBounds(activeCoords);
+                    map.fitBounds(bounds, { padding: [100, 100], animate: true, duration: 1 });
+                }
+            }
+
+        } else {
+            // --- MODE: Clustering (Leaflet.markercluster) ---
+
+            // Clean up displacement mode stuff
+            Object.keys(visibleMarkers).forEach(id => {
                 map.removeLayer(visibleMarkers[id]);
                 delete visibleMarkers[id];
-                if (displacementLines[id]) {
-                    map.removeLayer(displacementLines[id]);
-                    delete displacementLines[id];
-                }
-            }
-        });
-
-        // Update/Create new
-        currentActive.forEach(item => {
-            const person = item.person;
-            const target = finalPositions[person.id];
-            activeCoords.push([target.lat, target.lng]);
-
-            // Marker
-            const newLatLng = new L.LatLng(target.lat, target.lng);
-            if (visibleMarkers[person.id]) {
-                const marker = visibleMarkers[person.id];
-                const oldLatLng = marker.getLatLng();
-                if (oldLatLng.distanceTo(newLatLng) > 1) {
-                    marker.setLatLng(newLatLng);
-                }
-            } else {
-                const marker = L.marker(newLatLng, {
-                    icon: createCalloutIcon(person, showCallout)
-                });
-                marker.on('click', () => {
-                    const content = buildPopupContent(person);
-                    marker.bindPopup(content, { maxWidth: 350, minWidth: 250 }).openPopup();
-                });
-                marker.addTo(map);
-                visibleMarkers[person.id] = marker;
-            }
-
-            // Displacement Line
-            if (target.isDisplaced) {
-                const origin = target.origin;
-                const linePoints = [[origin.lat, origin.lng], [target.lat, target.lng]];
-
-                if (displacementLines[person.id]) {
-                    displacementLines[person.id].setLatLngs(linePoints);
-                } else {
-                    const line = L.polyline(linePoints, {
-                        color: '#666',
-                        weight: 1,
-                        opacity: 0.6
-                    }).addTo(map);
-                    displacementLines[person.id] = line;
-                }
-            } else {
-                // Remove line if exists (no longer displaced)
-                if (displacementLines[person.id]) {
-                    map.removeLayer(displacementLines[person.id]);
-                    delete displacementLines[person.id];
-                }
-            }
-        });
-
-        // 4. Handle Parent Lines
-        if (parentsCheck && parentsCheck.checked) {
-            drawParentLines(currentActive, finalPositions);
-        } else {
+            });
+            Object.keys(displacementLines).forEach(id => {
+                map.removeLayer(displacementLines[id]);
+                delete displacementLines[id];
+            });
             clearParentLines();
-        }
 
-        // 6. Handle Autozoom
-        if (autozoomCheck && autozoomCheck.checked) {
-            if (activeCoords.length > 0) {
-                const bounds = L.latLngBounds(activeCoords);
-                // Animate zoom
-                map.fitBounds(bounds, { padding: [100, 100], animate: true, duration: 1 });
+            // Rebuild Cluster
+            markersCluster.clearLayers();
+            const clusterMarkers = [];
+            const activeCoords = [];
+
+            // Simple positions (no displacement)
+            const activePos = {};
+
+            currentActive.forEach(item => {
+                const person = item.person;
+                const pos = item.pos;
+                activePos[person.id] = { lat: pos.lat, lng: pos.lng };
+
+                activeCoords.push([pos.lat, pos.lng]);
+
+                // Create standard marker or small circle for cluster
+                // Since "callout" is off, we can use a standard icon or simple dot
+                // Let's use the 'createCalloutIcon' but with hidden bubble as implemented or just a standard marker?
+                // The task implies "disable callouts", so we use the icon without bubble.
+                // Re-creating marker each time for cluster might be expensive but standard for cluster updates usually.
+
+                const marker = L.marker([pos.lat, pos.lng], {
+                    icon: createCalloutIcon(person, false) // False = Hide bubble
+                });
+                marker.bindPopup(buildPopupContent(person), { maxWidth: 350, minWidth: 250 });
+                clusterMarkers.push(marker);
+            });
+
+            markersCluster.addLayers(clusterMarkers);
+            if (!map.hasLayer(markersCluster)) {
+                map.addLayer(markersCluster);
+            }
+
+            // 4. Handle Parent Lines (Optional in cluster mode? Lines might look weird appearing from inside clusters)
+            if (parentsCheck && parentsCheck.checked) {
+                // We can draw lines between exact positions, Leaflet handles lines 'under' clusters usually ok
+                // or we might want to disable them.
+                // Let's try to draw them.
+                drawParentLines(currentActive, activePos);
+            }
+
+            // 6. Autozoom
+            if (autozoomCheck && autozoomCheck.checked) {
+                if (activeCoords.length > 0) {
+                    const bounds = L.latLngBounds(activeCoords);
+                    map.fitBounds(bounds, { padding: [100, 100], animate: true, duration: 1 });
+                }
             }
         }
     }
@@ -609,7 +673,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (calloutCheck) {
         calloutCheck.addEventListener('change', () => {
-            updateCalloutVisibility();
+            // Instead of just toggling CSS, we need to rebuild map to switch between Cluster and Spread modes
+            updateMap(parseInt(slider.value));
         });
     }
 
