@@ -97,11 +97,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const parentsCheck = document.getElementById('show-parents-check');
     const autozoomCheck = document.getElementById('autozoom-check');
     const calloutCheck = document.getElementById('show-callout-check');
+    const histogramCanvas = document.getElementById('timeline-histogram');
 
     let individuals = [];
     let visibleMarkers = {}; // Map of id -> L.marker
     let displacementLines = {}; // Map of id -> L.polyline
     let parentLines = []; // Array of L.polyline
+    let histogramCounts = {}; // year -> count
+    let maxCount = 0;
 
     // Cluster Group
     let markersCluster = L.markerClusterGroup();
@@ -149,6 +152,71 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
         return '#' + "00000".substring(0, 6 - c.length) + c;
+    }
+
+    // Histogram Logic
+    function calculateHistogram() {
+        histogramCounts = {};
+        maxCount = 0;
+        for (let y = minYear; y <= maxYear; y++) {
+            let count = 0;
+            individuals.forEach(p => {
+                const birth = p.yearFrom ? parseInt(p.yearFrom) : null;
+                const death = p.yearTo ? parseInt(p.yearTo) : null;
+
+                // Logic: Alive if year >= birth AND year <= death
+                // If birth is missing, we assume they are NOT alive before a known death? 
+                // Or we skip. Let's be strict: need birth.
+                // If death is missing, assume alive until MaxYear? Or maybe 100 years?
+                // For simplicity, let's say if we have birth, they are alive from birth to (death or birth+100 or current date)
+
+                if (birth !== null) {
+                    let end = death;
+                    if (end === null) end = Math.min(new Date().getFullYear(), birth + 100);
+
+                    if (y >= birth && y <= end) {
+                        count++;
+                    }
+                }
+            });
+            histogramCounts[y] = count;
+            if (count > maxCount) maxCount = count;
+        }
+    }
+
+    function drawHistogram(highlightYear) {
+        if (!histogramCanvas) return;
+        const ctx = histogramCanvas.getContext('2d');
+        const width = histogramCanvas.width = histogramCanvas.clientWidth;
+        const height = histogramCanvas.height = histogramCanvas.clientHeight;
+
+        ctx.clearRect(0, 0, width, height);
+
+        if (maxCount === 0) return;
+
+        const range = maxYear - minYear;
+        if (range <= 0) return;
+
+        const barWidth = Math.max(1, width / (range + 1));
+
+        ctx.fillStyle = '#ccc';
+
+        for (let y = minYear; y <= maxYear; y++) {
+            const count = histogramCounts[y] || 0;
+            if (count === 0) continue;
+
+            const barHeight = (count / maxCount) * height;
+            const x = ((y - minYear) / range) * width;
+            const yPos = height - barHeight;
+
+            if (y === highlightYear) {
+                ctx.fillStyle = '#0d6efd'; // Bootstrap primary
+                ctx.fillRect(x, yPos, barWidth, barHeight);
+                ctx.fillStyle = '#ccc';
+            } else {
+                ctx.fillRect(x, yPos, barWidth, barHeight);
+            }
+        }
     }
 
     // Load Data
@@ -210,6 +278,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Fit bounds initially
                 fitBoundsToAll();
 
+                calculateHistogram();
                 updateMap(currentYear);
             })
             .catch(err => {
@@ -491,7 +560,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 drawParentLines(currentActive, activePos);
             }
 
-            // 6. Autozoom
             if (autozoomCheck && autozoomCheck.checked) {
                 if (activeCoords.length > 0) {
                     const bounds = L.latLngBounds(activeCoords);
@@ -499,6 +567,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         }
+
+        drawHistogram(year);
     }
 
     function buildPopupContent(person) {
@@ -614,7 +684,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         slider.value = currentYear + playDirection;
         yearDisplay.innerText = slider.value;
-        updateMap(parseInt(slider.value));
+        const nextYear = parseInt(slider.value);
+        updateMap(nextYear);
 
         const speed = parseInt(speedSelect.value);
         const baseDelay = 500;
