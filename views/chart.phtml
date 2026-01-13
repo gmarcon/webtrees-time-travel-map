@@ -23,8 +23,11 @@ use Fisharebest\Webtrees\I18N;
         <?php else: ?>
             <div id="time-travel-wrapper" class="wt-fullscreen-container" style="position: relative; background: white;">
                 <!-- Map Container -->
-                <div id="map-container" class="time-map-container">
+                <div id="map-container" class="time-map-container" style="position: relative;">
                     <div id="map" class="wt-map" style="height: 100%; width: 100%;"></div>
+                    <div id="year-display"
+                        style="position: absolute; bottom: 20px; left: 20px; z-index: 1000; font-size: 3rem; font-weight: bold; color: #333; background-color: rgba(255, 255, 255, 0.7); padding: 5px 15px; border-radius: 8px; pointer-events: none;">
+                        ----</div>
                     <div id="loading-overlay">
                         <div class="spinner"></div>
                         <p style="margin-top: 10px;">Loading data...</p>
@@ -34,12 +37,7 @@ use Fisharebest\Webtrees\I18N;
                 <!-- Timeline Controls (Below Map) -->
                 <div id="controls-container" class="mt-2 p-3 border rounded shadow-sm">
                     <div class="row align-items-center">
-                        <div class="col-md-2">
-                            <label for="year-slider" class="form-label mb-0 fw-bold">
-                                <?= I18N::translate('Year') ?>: <span id="year-display" class="text-primary">----</span>
-                            </label>
-                        </div>
-                        <div class="col-md-5">
+                        <div class="col-md-7">
                             <canvas id="timeline-histogram" style="width: 100%; height: 50px; display: block;"></canvas>
                             <input type="range" id="year-slider" class="form-range" min="1700" max="2030" step="1"
                                 value="1800" style="margin-top: -10px; position: relative; z-index: 10;">
