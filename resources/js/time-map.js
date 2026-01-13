@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const loadingOverlay = document.getElementById('loading-overlay');
     const parentsCheck = document.getElementById('show-parents-check');
     const autozoomCheck = document.getElementById('autozoom-check');
-    const calloutCheck = document.getElementById('show-callout-check');
+    const calloutsCheck = document.getElementById('show-callouts-check');
     const histogramCanvas = document.getElementById('timeline-histogram');
 
     let individuals = [];
@@ -126,10 +126,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Create callout icon
-    function createCalloutIcon(person, showCallout) {
+    function createCalloutIcon(person, showCallouts) {
         const birth = person.yearFrom || '?';
         const death = person.yearTo || '?';
-        const displayStyle = showCallout ? '' : 'display:none;';
+        const displayStyle = showCallouts ? '' : 'display:none;';
 
         return L.divIcon({
             className: 'custom-callout-icon',
@@ -354,7 +354,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // 1. Identify Valid People & Locations
         const currentActive = []; // { person, pos: {lat, lng, event} }
         const coordsMap = {}; // "lat,lng" -> [ {person, pos} ]
-        const showCallout = calloutCheck ? calloutCheck.checked : true;
+        const showCallouts = calloutsCheck ? calloutsCheck.checked : true;
 
         individuals.forEach(person => {
             const birth = person.yearFrom || -9999;
@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // We will rebuild mostly everything to be safe or update existing.
 
         // Mode Check
-        if (showCallout) {
+        if (showCallouts) {
             // --- MODE: Displacement (Spider Layout) ---
             if (map.hasLayer(markersCluster)) {
                 map.removeLayer(markersCluster);
@@ -651,7 +651,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updateCalloutVisibility() {
         // Toggle visibility of callout bubbles based on checkbox state
-        const showCallout = calloutCheck ? calloutCheck.checked : true;
+        const showCallouts = calloutsCheck ? calloutsCheck.checked : true;
 
         Object.keys(visibleMarkers).forEach(id => {
             const marker = visibleMarkers[id];
@@ -659,7 +659,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (el) {
                 const bubble = el.querySelector('.callout-bubble');
                 if (bubble) {
-                    bubble.style.display = showCallout ? '' : 'none';
+                    bubble.style.display = showCallouts ? '' : 'none';
                 }
             }
         });
@@ -742,8 +742,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    if (calloutCheck) {
-        calloutCheck.addEventListener('change', () => {
+    if (calloutsCheck) {
+        calloutsCheck.addEventListener('change', () => {
             // Instead of just toggling CSS, we need to rebuild map to switch between Cluster and Spread modes
             updateMap(parseInt(slider.value));
         });

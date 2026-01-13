@@ -37,6 +37,28 @@ use Fisharebest\Webtrees\I18N;
                 <!-- Timeline Controls (Below Map) -->
                 <div id="controls-container" class="mt-2 p-3 border rounded shadow-sm">
                     <div class="row align-items-center">
+                        <div class="col-md-2">
+                            <div class="d-flex flex-column align-items-start gap-0">
+                                <div class="form-check form-check-sm mb-0">
+                                    <input class="form-check-input" type="checkbox" id="autozoom-check">
+                                    <label class="form-check-label small" for="autozoom-check">
+                                        <?= I18N::translate('Autozoom') ?>
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-sm mb-0">
+                                    <input class="form-check-input" type="checkbox" id="show-parents-check">
+                                    <label class="form-check-label small" for="show-parents-check">
+                                        <?= I18N::translate('Show Parents Lines') ?>
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-sm mb-0">
+                                    <input class="form-check-input" type="checkbox" id="show-callouts-check" checked>
+                                    <label class="form-check-label small" for="show-callouts-check">
+                                        <?= I18N::translate('Show Callouts') ?>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                         <div class="col-md-7">
                             <canvas id="timeline-histogram" style="width: 100%; height: 50px; display: block;"></canvas>
                             <input type="range" id="year-slider" class="form-range" min="1700" max="2030" step="1"
@@ -57,28 +79,6 @@ use Fisharebest\Webtrees\I18N;
                                     <option value="2">2x</option>
                                     <option value="5">5x</option>
                                 </select>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="d-flex flex-column align-items-start gap-0">
-                                <div class="form-check form-check-sm mb-0">
-                                    <input class="form-check-input" type="checkbox" id="autozoom-check">
-                                    <label class="form-check-label small" for="autozoom-check">
-                                        <?= I18N::translate('Autozoom') ?>
-                                    </label>
-                                </div>
-                                <div class="form-check form-check-sm mb-0">
-                                    <input class="form-check-input" type="checkbox" id="show-parents-check">
-                                    <label class="form-check-label small" for="show-parents-check">
-                                        <?= I18N::translate('Show Parents Lines') ?>
-                                    </label>
-                                </div>
-                                <div class="form-check form-check-sm mb-0">
-                                    <input class="form-check-input" type="checkbox" id="show-callout-check" checked>
-                                    <label class="form-check-label small" for="show-callout-check">
-                                        <?= I18N::translate('Show Callout') ?>
-                                    </label>
-                                </div>
                             </div>
                         </div>
                     </div>
