@@ -97,11 +97,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const parentsCheck = document.getElementById('show-parents-check');
     const autozoomCheck = document.getElementById('autozoom-check');
     const calloutCheck = document.getElementById('show-callout-check');
+    const recordBtn = document.getElementById('record-btn');
 
     let individuals = [];
     let visibleMarkers = {}; // Map of id -> L.marker
     let displacementLines = {}; // Map of id -> L.polyline
     let parentLines = []; // Array of L.polyline
+
+    // Recording vars
+    let mediaRecorder;
+    let recordedChunks = [];
+    let isRecording = false;
 
     // Cluster Group
     let markersCluster = L.markerClusterGroup();
@@ -605,25 +611,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (playDirection === 1 && currentYear >= maxYear) {
             isPlaying = false;
+            if (isRecording) stopRecording();
             return;
         }
-        if (playDirection === -1 && currentYear <= minYear) {
-            isPlaying = false;
-            return;
-        }
-
-        slider.value = currentYear + playDirection;
-        yearDisplay.innerText = slider.value;
-        updateMap(parseInt(slider.value));
-
-        const speed = parseInt(speedSelect.value);
-        const baseDelay = 500;
-        const delay = baseDelay / speed;
-
-        setTimeout(() => {
-            requestAnimationFrame(step);
-        }, delay);
     }
+    if (playDirection === -1 && currentYear <= minYear) {
+        isPlaying = false;
+        // No auto-stop recording on reverse usually, but safe to add if needed.
+        // if (isRecording) stopRecording(); 
+        return;
+    }
+
+    slider.value = currentYear + playDirection;
+    yearDisplay.innerText = slider.value;
+    updateMap(parseInt(slider.value));
+
+    const speed = parseInt(speedSelect.value);
+    const baseDelay = 500;
+    const delay = baseDelay / speed;
+
+    setTimeout(() => {
+        requestAnimationFrame(step);
+    }, delay);
+
 
     if (playBtn) {
         playBtn.addEventListener('click', () => {
@@ -646,7 +656,102 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pauseBtn) {
         pauseBtn.addEventListener('click', () => {
             isPlaying = false;
+            if (isRecording) stopRecording();
         });
+    }
+
+    if (recordBtn) {
+        recordBtn.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+    }
+
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: { mediaSource: "tab" }, // Suggests current tab
+                audio: false
+            });
+
+            // If user stops sharing via browser UI
+            stream.getVideoTracks()[0].onended = () => {
+                if (isRecording) stopRecording();
+            };
+
+            recordedChunks = [];
+            // Try to find a supported mime type
+            const mimeTypes = [
+                "video/webm;codecs=vp9",
+                "video/webm;codecs=vp8",
+                "video/webm"
+            ];
+            let mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || "video/webm";
+
+            mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, {
+                    type: mimeType
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                document.body.appendChild(a);
+                a.style = "display: none";
+                a.href = url;
+                a.download = `time-travel-map-${new Date().toISOString().slice(0, 10)}.webm`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+
+                // Stop tracks to release selection
+                stream.getTracks().forEach(track => track.stop());
+
+                isRecording = false;
+                if (recordBtn) {
+                    recordBtn.innerHTML = '⏺';
+                    recordBtn.classList.remove('btn-danger');
+                    recordBtn.classList.add('btn-outline-danger');
+                }
+                isPlaying = false;
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            if (recordBtn) {
+                recordBtn.innerHTML = '⏹';
+                recordBtn.classList.remove('btn-outline-danger');
+                recordBtn.classList.add('btn-danger');
+            }
+
+            // Reset to start and play
+            playDirection = 1;
+            slider.value = minYear;
+            currentYear = parseInt(minYear); // Ensure int
+            yearDisplay.innerText = currentYear;
+            updateMap(currentYear);
+            isPlaying = true;
+            step();
+
+        } catch (err) {
+            console.error("Error starting recording: " + err);
+            // alert("Needs permission to record screen.");
+        }
+    }
+
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+        isRecording = false;
     }
 
     if (slider) {
