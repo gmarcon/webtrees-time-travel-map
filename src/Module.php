@@ -38,6 +38,8 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
     public const CUSTOM_VERSION = '1.0.6';
     public const CUSTOM_AUTHOR = 'Giulio Marcon';
     public const GITHUB_REPO = 'gmarcon/webtrees-time-travel-map';
+    public const CUSTOM_SUPPORT_URL = 'https://github.com/gmarcon/webtrees-time-travel-map';
+    public const CUSTOM_LATEST_VERSION = 'https://raw.githubusercontent.com/' . self::GITHUB_REPO . '/main/latest-version.txt';
 
     /**
      * @return string
@@ -76,7 +78,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
      */
     public function customModuleLatestVersionUrl(): string
     {
-        return 'https://raw.githubusercontent.com/' . self::GITHUB_REPO . '/main/latest-version.txt';
+        return self::CUSTOM_LATEST_VERSION;
     }
 
     /**
@@ -84,7 +86,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
      */
     public function customModuleSupportUrl(): string
     {
-        return 'https://github.com/' . self::GITHUB_REPO;
+        return return self::CUSTOM_SUPPORT_URL;
     }
 
     /**
