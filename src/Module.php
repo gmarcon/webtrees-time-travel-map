@@ -9,6 +9,7 @@ use Fisharebest\Webtrees\I18N;
 use Illuminate\Support\Collection;
 use Fisharebest\Webtrees\Individual;
 use Fisharebest\Webtrees\Menu;
+use Fisharebest\Localization\Translation;
 use Fisharebest\Webtrees\Module\AbstractModule;
 use Fisharebest\Webtrees\Module\ModuleChartInterface;
 use Fisharebest\Webtrees\Module\ModuleConfigInterface;
@@ -43,7 +44,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
      */
     public function title(): string
     {
-        return 'Time Travel Map';
+        return I18N::translate('Time Travel Map');
     }
 
     /**
@@ -51,7 +52,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
      */
     public function description(): string
     {
-        return 'Pedigree/Descendants map over time.';
+        return I18N::translate('Time Travel Map is a module to visualize the geographic history of a family over time.');
     }
 
     /**
@@ -84,15 +85,6 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
     public function customModuleSupportUrl(): string
     {
         return 'https://github.com/' . self::GITHUB_REPO;
-    }
-
-    /**
-     * @param string $language
-     * @return array
-     */
-    public function customTranslations(string $language): array
-    {
-        return [];
     }
 
     /**
@@ -191,6 +183,37 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
             ->get(self::class . '::data', '/tree/{tree}/time-travel-map/data', Http\MapData::class);
 
         \Fisharebest\Webtrees\View::registerNamespace('modules/time-travel-map', __DIR__ . '/../views/');
+    }
+
+     /**
+     * The folder for the module ressources
+     * {@inheritDoc}
+     *
+     * @return string
+     *
+     * @see \Fisharebest\Webtrees\Module\AbstractModule::resourcesFolder()
+     */
+    public function resourcesFolder(): string
+    {
+        return __DIR__ . '/../resources/';
+    }
+ 
+    /**
+     * Additional/updated translations.
+     *
+     * @param string $language
+     *
+     * @return array
+     */
+    public function customTranslations(string $language): array
+    {
+        $lang_dir   = $this->resourcesFolder() . 'lang/';
+        $file       = $lang_dir . $language . '.mo';
+        if (file_exists($file)) {
+            return (new Translation($file))->asArray();
+        } else {
+            return [];
+        }
     }
 
     /**
