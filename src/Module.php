@@ -35,7 +35,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
     public const DEFAULT_INDI_TAGS = ['BIRT', 'CHR', 'BAPM', 'DEAT', 'BURI', 'CREM', 'RESI', 'EDUC', 'OCCU', 'CENS', 'EVEN'];
     public const DEFAULT_FAM_TAGS = ['MARR', 'DIV', 'CENS', 'RESI', 'EVEN'];
 
-    public const CUSTOM_VERSION = '1.0.5';
+    public const CUSTOM_VERSION = '1.0.6';
     public const CUSTOM_AUTHOR = 'Giulio Marcon';
     public const GITHUB_REPO = 'gmarcon/webtrees-time-travel-map';
 
@@ -185,7 +185,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
         \Fisharebest\Webtrees\View::registerNamespace('modules/time-travel-map', __DIR__ . '/../views/');
     }
 
-     /**
+    /**
      * The folder for the module ressources
      * {@inheritDoc}
      *
@@ -197,7 +197,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
     {
         return __DIR__ . '/../resources/';
     }
- 
+
     /**
      * Additional/updated translations.
      *
@@ -207,8 +207,8 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
      */
     public function customTranslations(string $language): array
     {
-        $lang_dir   = $this->resourcesFolder() . 'lang/';
-        $file       = $lang_dir . $language . '.mo';
+        $lang_dir = $this->resourcesFolder() . 'lang/';
+        $file = $lang_dir . $language . '.mo';
         if (file_exists($file)) {
             return (new Translation($file))->asArray();
         } else {
