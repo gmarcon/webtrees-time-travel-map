@@ -154,6 +154,7 @@ class TreeWalker
             'yearFrom' => $yearFrom,
             'yearTo' => $yearTo,
             'events' => $events,
+            'sex' => $person->sex(),
         ];
     }
 

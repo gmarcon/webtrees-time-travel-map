@@ -130,6 +130,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const birth = person.yearFrom || '?';
         const death = person.yearTo || '?';
         let displayStyle = showCallouts ? '' : 'display:none;';
+        const personSex = person.sex;
+
+        if (personSex == 'M') {
+            calloutDotStyle = 'callout-dot-m';
+        }
+        else if (personSex == 'F') {
+            calloutDotStyle = 'callout-dot-f';
+        }
+        else {
+            calloutDotStyle = 'callout-dot';
+        }
 
         // Radial Positioning
         const lineLength = 40; // Length of the leader line
@@ -147,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Structure: Wrapper > Leader Line + Dot + Bubble
             html: `<div class="callout-wrapper">
                      <div class="leader-line" style="transform: rotate(${angle}deg); width: ${lineLength}px; ${displayStyle}"></div>
-                     <div class="callout-dot"></div>
+                     <div class="c${calloutDotStyle}"></div>
                      <div class="callout-bubble" style="${bubbleParams} ${displayStyle}">
                         <div class="person-name">${person.name}</div>
                         <span class="years">(${birth}-${death})</span>

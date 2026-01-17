@@ -1,3 +1,9 @@
+:root {
+    --sex-f-fg: var(--data-pink-color-emphasis);
+    --sex-m-fg: var(--data-blue-color-emphasis);
+    --sex-u-fg: var(--data-gray-color-emphasis);
+}
+
 body {
     margin: 0;
     padding: 0;
@@ -200,7 +206,39 @@ body {
 .callout-dot {
     width: 14px;
     height: 14px;
-    background-color: #007bff;
+    background-color: var(--sex-u-fg);
+    /* Blue dot */
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    position: absolute;
+    top: -7px;
+    /* Center vertically on 0 */
+    left: -7px;
+    /* Center horizontally on 0 */
+    z-index: 10;
+}
+
+.callout-dot-f {
+    width: 14px;
+    height: 14px;
+    background-color: var(--sex-f-fg);
+    /* Blue dot */
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    position: absolute;
+    top: -7px;
+    /* Center vertically on 0 */
+    left: -7px;
+    /* Center horizontally on 0 */
+    z-index: 10;
+}
+
+.callout-dot-m {
+    width: 14px;
+    height: 14px;
+    background-color: var(--sex-m-fg);
     /* Blue dot */
     border: 2px solid #fff;
     border-radius: 50%;
