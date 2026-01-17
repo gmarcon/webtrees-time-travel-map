@@ -126,18 +126,31 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Create callout icon
-    function createCalloutIcon(person, showCallouts) {
+    function createCalloutIcon(person, showCallouts, angle = -90) {
         const birth = person.yearFrom || '?';
         const death = person.yearTo || '?';
-        const displayStyle = showCallouts ? '' : 'display:none;';
+        let displayStyle = showCallouts ? '' : 'display:none;';
+
+        // Radial Positioning
+        const lineLength = 40; // Length of the leader line
+        const rad = angle * (Math.PI / 180);
+
+        // Calculate bubble center position relative to dot
+        const bx = lineLength * Math.cos(rad);
+        const by = lineLength * Math.sin(rad);
+
+        // We use translate(-50%, -50%) to center the bubble on the end of the line
+        const bubbleParams = `transform: translate(${bx}px, ${by}px) translate(-50%, -50%);`;
 
         return L.divIcon({
             className: 'custom-callout-icon',
-            // Structure: Wrapper > Dot + Bubble
+            // Structure: Wrapper > Leader Line + Dot + Bubble
             html: `<div class="callout-wrapper">
+                     <div class="leader-line" style="transform: rotate(${angle}deg); width: ${lineLength}px; ${displayStyle}"></div>
                      <div class="callout-dot"></div>
-                     <div class="callout-bubble" style="${displayStyle}">
-                        ${person.name}<span class="years">(${birth}-${death})</span>
+                     <div class="callout-bubble" style="${bubbleParams} ${displayStyle}">
+                        <div class="person-name">${person.name}</div>
+                        <span class="years">(${birth}-${death})</span>
                      </div>
                    </div>`,
             iconSize: null,
@@ -325,29 +338,44 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return null;
         }
-
         return { lat: bestEvent.coords[0], lng: bestEvent.coords[1], event: bestEvent };
     }
 
+    // Zoom listener to re-calculate positions
+    map.on('zoomend', function () {
+        if (calloutsCheck && calloutsCheck.checked) {
+            const cObj = parseInt(slider.value);
+            updateMap(cObj);
+            // Also sync global variable just in case
+            currentYear = cObj;
+        }
+    });
+
     function getDisplacedCoords(centerLat, centerLng, index, total) {
-        if (total <= 1) return { lat: centerLat, lng: centerLng };
+        if (total <= 1) return { lat: centerLat, lng: centerLng, angle: 0 };
 
-        // Radius: Start with base 0.02 (~2km) and grow if needed
-        const radius = Math.max(0.02, total * 0.003);
+        // Convert center to pixel point
+        const centerPoint = map.latLngToLayerPoint([centerLat, centerLng]);
 
-        // Distribute evenly around the circle
-        const angleStep = 360 / total;
-        const angleDeg = (index * angleStep) - 90; // Start at top (-90 degrees)
+        // Spiral Layout (Phyllotaxis / Archimedean)
+        // More compact than a single circle for large numbers
+        const angleStep = 137.5; // Golden Angle in degrees
+        const angleDeg = index * angleStep;
         const angleRad = angleDeg * (Math.PI / 180);
 
-        // Aspect ratio correction for latitude
-        const latRad = centerLat * (Math.PI / 180);
-        const lngScale = 1 / Math.cos(latRad);
+        // Radius grows with square root of index to maintain constant density
+        // Base padding + expansion
+        // Tuning: 50px start, + 30px scaling
+        const radius = 50 + (30 * Math.sqrt(index));
 
-        const newLat = centerLat + radius * Math.sin(angleRad);
-        const newLng = centerLng + (radius * Math.cos(angleRad)) * lngScale;
+        // Calculate new pixel position
+        const newX = centerPoint.x + radius * Math.cos(angleRad);
+        const newY = centerPoint.y + radius * Math.sin(angleRad);
 
-        return { lat: newLat, lng: newLng };
+        // Convert back to LatLng
+        const newLatLng = map.layerPointToLatLng([newX, newY]);
+
+        return { lat: newLatLng.lat, lng: newLatLng.lng, angle: angleDeg };
     }
 
     function updateMap(year) {
@@ -386,7 +414,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // 2. Calculate Final Positions (Handling Clusters manually)
-            const finalPositions = {}; // personId -> { lat, lng, isDisplaced, origin: {lat,lng} }
+            const finalPositions = {}; // personId -> { lat, lng, isDisplaced, origin: {lat,lng}, angle }
 
             Object.keys(coordsMap).forEach(key => {
                 const cluster = coordsMap[key];
@@ -398,7 +426,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     finalPositions[p.person.id] = {
                         lat: originLat,
                         lng: originLng,
-                        isDisplaced: false
+                        isDisplaced: false,
+                        angle: -90 // Default to Top for single items
                     };
                 } else {
                     // Cluster
@@ -415,7 +444,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             lat: displaced.lat,
                             lng: displaced.lng,
                             isDisplaced: true,
-                            origin: { lat: originLat, lng: originLng }
+                            origin: { lat: originLat, lng: originLng },
+                            angle: displaced.angle
                         };
                     });
                 }
@@ -452,10 +482,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (oldLatLng.distanceTo(newLatLng) > 1) {
                         marker.setLatLng(newLatLng);
                     }
+                    // ALWAYS update icon to ensure angle is correct if index/total changed
+                    marker.setIcon(createCalloutIcon(person, true, target.angle));
+
                     if (!map.hasLayer(marker)) marker.addTo(map);
                 } else {
                     const marker = L.marker(newLatLng, {
-                        icon: createCalloutIcon(person, true)
+                        icon: createCalloutIcon(person, true, target.angle)
                     });
                     marker.on('click', () => {
                         const content = buildPopupContent(person);
@@ -723,7 +756,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (slider) {
         slider.addEventListener('input', () => {
             yearDisplay.innerText = slider.value;
-            updateMap(parseInt(slider.value));
+            currentYear = parseInt(slider.value);
+            updateMap(currentYear);
         });
     }
 

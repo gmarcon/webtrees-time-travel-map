@@ -192,10 +192,7 @@ body {
 /* Callout Pin Style (Dot + Bubble) */
 .callout-wrapper {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    /* Wrapper is centered on the coordinate. Dot will be at center. Bubble above. */
+    /* Removed display: flex to prevent layout interference with absolute children */
     width: 0;
     height: 0;
 }
@@ -216,8 +213,26 @@ body {
     z-index: 10;
 }
 
+/* Leader Line for Radial Callouts */
+.leader-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 2px;
+    /* Thicker line */
+    background-color: #333;
+    /* Darker line */
+    transform-origin: 0 0;
+    /* Rotate around the dot center */
+    z-index: 5;
+    pointer-events: none;
+}
+
 .callout-bubble {
-    background: #fff;
+    /* Basic style */
+    background: rgba(255, 255, 255, 0.5);
+    /*backdrop-filter: blur(2px);*/
+    /* Optional: improves readability */
     border: 1px solid #999;
     border-radius: 4px;
     padding: 3px 6px;
@@ -226,40 +241,26 @@ body {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     text-align: center;
     color: #000;
-    /* Changed to pure black for better contrast */
     font-weight: bold;
 
     position: absolute;
-    bottom: 12px;
-    /* Position above the dot */
-    left: 50%;
-    transform: translateX(-50%);
-    /* Center horizontally */
+    /* We will use transform to position it */
+    top: 0;
+    left: 0;
     z-index: 20;
     min-width: 80px;
     pointer-events: auto;
-    /* Ensure clickable */
 }
 
+/* Remove arrow pseudo-element as we use leader-line */
 .callout-bubble::after {
-    content: '';
-    position: absolute;
-    bottom: -6px;
-    left: 50%;
-    margin-left: -6px;
-    width: 0;
-    height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 6px solid #fff;
-    /* For a border effect on the arrow, we can use filter or a slightly larger pseudo-element behind it, but simple white is fine for now */
-    filter: drop-shadow(0 1px 0px #999);
+    display: none;
 }
 
+/* Original default override if needed */
 .callout-bubble .years {
     font-size: 0.85em;
     color: #333;
-    /* Changed to darker color for better readability */
     display: block;
     margin-top: 0px;
     font-weight: normal;
