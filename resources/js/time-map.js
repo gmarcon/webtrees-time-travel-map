@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Structure: Wrapper > Leader Line + Dot + Bubble
             html: `<div class="callout-wrapper">
                      <div class="leader-line" style="transform: rotate(${angle}deg); width: ${lineLength}px; ${displayStyle}"></div>
-                     <div class="c${calloutDotStyle}"></div>
+                     <div class="${calloutDotStyle}"></div>
                      <div class="callout-bubble" style="${bubbleParams} ${displayStyle}">
                         <div class="person-name">${person.name}</div>
                         <span class="years">(${birth}-${death})</span>
