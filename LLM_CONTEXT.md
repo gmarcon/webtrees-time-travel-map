@@ -69,14 +69,15 @@ The `MapData` controller returns a JSON object containing metadata and a list of
 1.  **Input**: Root Individual (`XREF`), Mode (`ancestors` vs `descendants`), Generations (int).
 2.  **Service**: Use `Fisharebest\Webtrees\Services\ChartService` for tree traversal.
 3.  **Fact Extraction**:
-    -   **INDI Facts**: `BIRT`, `DEAT`, `RESI`, `BURI`, `EDUC`, `OCCU`, `CENS` (plus others defined in `Gedcom::BIRTH_EVENTS` etc.).
-    -   **FAM Facts**: `MARR`, `DIV`, `CENS`, `RESI` (associated with spouses).
+    -   Standard **INDI Facts**: `BIRT`, `CHR`, `BAPM`, `DEAT`, `BURI`, `CREM`, `RESI`, `EDUC`, `OCCU`, `CENS`, `EVEN`.
+    -   Standard **FAM Facts**: `MARR`, `DIV`, `CENS`, `RESI`, `EVEN`.
+    -   INDI/FAM extracted facts are configurable in the standard webtrees module configuration.
     -   **Location Inheritance**:
-        -   If an individual has **NO** events with coordinates, the system searches relatives.
+        -   If an individual has **NO** events with coordinates, the system guesses the location from relatives.
         -   **Ancestors Mode (UP)**: Looks at *children* to find the *earliest* event to use as a fallback.
         -   **Descendants Mode (DOWN)**: Looks at *parents* to find the *latest* event to use as a fallback.
         -   Inherited events are types as `cal` (Estimated Location).
-4.  **Year Estimation**:
+4.  **Alive period estimation**:
     -   `yearFrom`: Birth year or min event year.
     -   `yearTo`: Death year, current year (if alive), or max event year.
 
