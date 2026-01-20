@@ -511,7 +511,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         icon: createCalloutIcon(person, true, target.angle)
                     });
                     marker.on('click', () => {
-                        // Optional: Bring to front?
+                        const content = buildPopupContent(person);
+                        marker.bindPopup(content, { maxWidth: 350, minWidth: 250 }).openPopup();
                     });
                     marker.addTo(map);
                     visibleMarkers[person.id] = marker;
