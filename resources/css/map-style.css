@@ -286,3 +286,26 @@ body {
     color: inherit;
     /* Inherit from parent to respect theme */
 }
+
+/* Visual Shock Effect */
+@keyframes flash-red {
+    0% {
+        color: inherit;
+        transform: scale(1);
+    }
+
+    50% {
+        color: red;
+        font-weight: bold;
+        transform: scale(4.0);
+    }
+
+    100% {
+        color: inherit;
+        transform: scale(1);
+    }
+}
+
+.flash-red {
+    animation: flash-red 0.4s ease-in-out;
+}

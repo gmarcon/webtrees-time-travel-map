@@ -349,6 +349,14 @@ document.addEventListener('DOMContentLoaded', function () {
     map.on('zoomstart', function () {
         if (!isProgrammaticZoom && autozoomCheck && autozoomCheck.checked) {
             autozoomCheck.checked = false;
+            // Visual Effect
+            if (autozoomCheck.parentElement) {
+                const label = autozoomCheck.parentElement.querySelector('label') || autozoomCheck.parentElement;
+                label.classList.add('flash-red');
+                setTimeout(() => {
+                    label.classList.remove('flash-red');
+                }, 500);
+            }
         }
     });
 
