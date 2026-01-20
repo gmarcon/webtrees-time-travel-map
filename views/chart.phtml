@@ -73,6 +73,8 @@ use Fisharebest\Webtrees\I18N;
                                         title="<?= I18N::translate('Pause') ?>">⏸</button>
                                     <button id="play-btn" class="btn btn-outline-secondary"
                                         title="<?= I18N::translate('Play') ?>">▶</button>
+                                    <button id="record-btn" class="btn btn-outline-secondary"
+                                        title="<?= I18N::translate('Record Video') ?>">●</button>
                                 </div>
                                 <select id="speed-select" class="form-select form-select-sm" style="width: auto;">
                                     <option value="1" selected>1x</option>
@@ -133,6 +135,38 @@ use Fisharebest\Webtrees\I18N;
         .leaflet-bar a.leaflet-control-custom-fullscreen {
             text-decoration: none;
             color: #333;
+        }
+
+        /* Recording Mode Styles */
+        body.recording-mode {
+            overflow: hidden !important;
+        }
+        body.recording-mode > *:not(#time-travel-wrapper) {
+            display: none !important;
+        }
+        body.recording-mode #time-travel-wrapper {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 99999;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white;
+        }
+        body.recording-mode #controls-container,
+        body.recording-mode .leaflet-control-zoom,
+        body.recording-mode .leaflet-control-custom-fullscreen,
+        body.recording-mode .leaflet-control-layers {
+            display: none !important;
+        }
+        
+        /* Highlight record button when active */
+        #record-btn.active {
+            background-color: #dc3545; /* Bootstrap danger red */
+            color: white;
+            border-color: #dc3545;
         }
     </style>
 

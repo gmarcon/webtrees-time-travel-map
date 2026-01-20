@@ -98,6 +98,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const autozoomCheck = document.getElementById('autozoom-check');
     const calloutsCheck = document.getElementById('show-callouts-check');
     const histogramCanvas = document.getElementById('timeline-histogram');
+    const recordBtn = document.getElementById('record-btn');
+
+    let isRecordingPrep = false; // Flag to indicate we are setting up recording
+    let mediaRecorder = null;
+    let recordedChunks = [];
 
     let individuals = [];
     let visibleMarkers = {}; // Map of id -> L.marker
@@ -295,6 +300,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 calculateHistogram();
                 updateMap(currentYear);
+
+                // Notify if in recording mode
+                if (window.opener && new URLSearchParams(window.location.search).has('recording_mode')) {
+                    window.opener.postMessage({ action: 'CHILD_READY' }, '*');
+                }
             })
             .catch(err => {
                 hideLoading();
@@ -733,10 +743,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (playDirection === 1 && currentYear >= maxYear) {
             isPlaying = false;
+            if (new URLSearchParams(window.location.search).has('recording_mode') && window.opener) {
+                window.opener.postMessage({ action: 'PLAYBACK_FINISHED' }, '*');
+            }
             return;
         }
         if (playDirection === -1 && currentYear <= minYear) {
             isPlaying = false;
+            if (new URLSearchParams(window.location.search).has('recording_mode') && window.opener) {
+                window.opener.postMessage({ action: 'PLAYBACK_FINISHED' }, '*');
+            }
             return;
         }
 
@@ -756,6 +772,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (playBtn) {
         playBtn.addEventListener('click', () => {
+            if (recordBtn && recordBtn.classList.contains('active')) {
+                startRecordingSequence(1);
+                return;
+            }
             playDirection = 1;
             if (isPlaying) return;
             isPlaying = true;
@@ -765,6 +785,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (reverseBtn) {
         reverseBtn.addEventListener('click', () => {
+            if (recordBtn && recordBtn.classList.contains('active')) {
+                startRecordingSequence(-1);
+                return;
+            }
             playDirection = -1;
             if (isPlaying) return;
             isPlaying = true;
@@ -797,7 +821,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (autozoomCheck) {
         autozoomCheck.addEventListener('change', () => {
-            // Stop blinking when user interacts
             if (autozoomCheck.parentElement) {
                 const label = autozoomCheck.parentElement.querySelector('label') || autozoomCheck.parentElement;
                 label.classList.remove('blink-text');
@@ -805,6 +828,147 @@ document.addEventListener('DOMContentLoaded', function () {
             updateMap(parseInt(slider.value));
         });
     }
+
+    if (recordBtn) {
+        recordBtn.addEventListener('click', () => {
+            recordBtn.classList.toggle('active');
+        });
+    }
+
+    function startRecordingSequence(direction) {
+        // 1. Open Popup
+        const width = 1200;
+        const height = 800;
+        const left = (screen.width - width) / 2;
+        const top = (screen.height - height) / 2;
+
+        const url = new URL(window.location.href);
+        url.searchParams.set('recording_mode', '1');
+
+        const recWin = window.open(url.toString(), 'RecordingWindow', `width=${width},height=${height},top=${top},left=${left},menubar=no,toolbar=no,location=no,status=no`);
+
+        const messageHandler = (event) => {
+            if (event.source !== recWin) return;
+
+            if (event.data.action === 'CHILD_READY') {
+                // 3. Request Permission
+                navigator.mediaDevices.getDisplayMedia({
+                    video: { cursor: "never" },
+                    audio: false
+                }).then(stream => {
+                    // 4. Start Recording
+                    mediaRecorder = new MediaRecorder(stream);
+                    recordedChunks = [];
+
+                    mediaRecorder.ondataavailable = e => {
+                        if (e.data.size > 0) recordedChunks.push(e.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        // Use a nice filename
+                        const name = (typeof TREE_NAME !== 'undefined') ? TREE_NAME : 'map';
+                        a.download = `time-travel-${name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(() => {
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                        }, 100);
+
+                        // Cleanup
+                        recWin.close(); // Ensure window closes
+                        window.removeEventListener('message', messageHandler);
+
+                        // Toggle off record button
+                        if (recordBtn) recordBtn.classList.remove('active');
+                    };
+
+                    mediaRecorder.start();
+
+                    // 5. Tell Child to Play
+                    // Get current map state
+                    const center = map.getCenter();
+                    const zoom = map.getZoom();
+
+                    recWin.postMessage({
+                        action: 'START_PLAYBACK',
+                        startYear: parseInt(slider.value),
+                        direction: direction,
+                        speed: parseInt(speedSelect.value),
+                        showParents: parentsCheck ? parentsCheck.checked : false,
+                        showCallouts: calloutsCheck ? calloutsCheck.checked : true,
+                        autozoom: autozoomCheck ? autozoomCheck.checked : false,
+                        center: { lat: center.lat, lng: center.lng },
+                        zoom: zoom
+                    }, '*');
+
+                    // Stop recording if the user stops sharing via browser UI
+                    stream.getVideoTracks()[0].onended = () => {
+                        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                            mediaRecorder.stop();
+                        }
+                    };
+
+                }).catch(err => {
+                    console.error("Error/Cancel recording:", err);
+                    recWin.close();
+                    window.removeEventListener('message', messageHandler);
+                });
+            }
+
+            if (event.data.action === 'PLAYBACK_FINISHED') {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                    // Stop tracks
+                    if (mediaRecorder.stream) {
+                        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('message', messageHandler);
+    }
+
+    // Child Window Listener
+    window.addEventListener('message', (event) => {
+        if (event.data.action === 'START_PLAYBACK') {
+            const data = event.data;
+            if (slider) {
+                slider.value = data.startYear;
+                currentYear = data.startYear;
+                yearDisplay.innerText = currentYear;
+            }
+            if (parentsCheck) parentsCheck.checked = data.showParents;
+            if (calloutsCheck) calloutsCheck.checked = data.showCallouts;
+
+            // Sync autozoom - directly set property and trigger if needed? 
+            // Usually step() handles autozoom if checked.
+            if (autozoomCheck) {
+                autozoomCheck.checked = data.autozoom;
+            }
+
+            if (speedSelect) speedSelect.value = data.speed;
+
+            // Apply View
+            if (data.center && data.zoom) {
+                map.setView([data.center.lat, data.center.lng], data.zoom);
+            }
+
+            // Force one update before starting to ensure visual state is correct
+            updateMap(currentYear);
+
+            // Start
+            playDirection = data.direction;
+            isPlaying = true;
+            step();
+        }
+    });
 
     if (calloutsCheck) {
         calloutsCheck.addEventListener('change', () => {
