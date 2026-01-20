@@ -288,24 +288,19 @@ body {
 }
 
 /* Visual Shock Effect */
-@keyframes flash-red {
-    0% {
-        color: inherit;
-        transform: scale(1);
+@keyframes blink-text {
+
+    0%,
+    100% {
+        opacity: 1;
     }
 
     50% {
-        color: red;
-        font-weight: bold;
-        transform: scale(4.0);
-    }
-
-    100% {
-        color: inherit;
-        transform: scale(1);
+        opacity: 0.3;
     }
 }
 
-.flash-red {
-    animation: flash-red 0.4s ease-in-out;
+.blink-text {
+    animation: blink-text 1s infinite;
+    /* Blink indefinitely until interaction */
 }

@@ -352,10 +352,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Visual Effect
             if (autozoomCheck.parentElement) {
                 const label = autozoomCheck.parentElement.querySelector('label') || autozoomCheck.parentElement;
-                label.classList.add('flash-red');
-                setTimeout(() => {
-                    label.classList.remove('flash-red');
-                }, 500);
+                label.classList.add('blink-text');
             }
         }
     });
@@ -800,6 +797,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (autozoomCheck) {
         autozoomCheck.addEventListener('change', () => {
+            // Stop blinking when user interacts
+            if (autozoomCheck.parentElement) {
+                const label = autozoomCheck.parentElement.querySelector('label') || autozoomCheck.parentElement;
+                label.classList.remove('blink-text');
+            }
             updateMap(parseInt(slider.value));
         });
     }
