@@ -510,10 +510,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const marker = L.marker(newLatLng, {
                         icon: createCalloutIcon(person, true, target.angle)
                     });
-                    marker.on('click', () => {
-                        const content = buildPopupContent(person);
-                        marker.bindPopup(content, { maxWidth: 350, minWidth: 250 }).openPopup();
-                    });
+                    marker.bindPopup(buildPopupContent(person), { maxWidth: 350, minWidth: 250 });
                     marker.addTo(map);
                     visibleMarkers[person.id] = marker;
                 }
