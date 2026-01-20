@@ -138,6 +138,10 @@ document.addEventListener('DOMContentLoaded', function () {
     let maxYear = new Date().getFullYear();
     let currentYear = 1800;
 
+    // Recording State
+    let isDataLoaded = false;
+    let pendingRecordingConfig = null;
+
     // Flag to distinguish code-driven zooms from user interaction
     let isProgrammaticZoom = false;
 
@@ -322,6 +326,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (window.opener && new URLSearchParams(window.location.search).has('recording_mode')) {
                     console.log("Child sending READY");
                     window.opener.postMessage({ action: 'CHILD_READY' }, '*');
+                }
+
+                isDataLoaded = true;
+                if (pendingRecordingConfig) {
+                    setupRecordingUI(pendingRecordingConfig);
+                    pendingRecordingConfig = null;
                 }
             })
             .catch(err => {
@@ -903,7 +913,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         window.addEventListener('message', (event) => {
             if (event.data.action === 'INIT_RECORDING_SESSION') {
-                setupRecordingUI(event.data);
+                if (isDataLoaded) {
+                    setupRecordingUI(event.data);
+                } else {
+                    pendingRecordingConfig = event.data;
+                    showLoading(); // Ensure loading is visible
+                }
             }
         });
     }
@@ -951,8 +966,16 @@ document.addEventListener('DOMContentLoaded', function () {
         document.body.appendChild(overlay);
 
         btn.onclick = () => {
-            overlay.remove();
-            startChildRecording(config);
+            // Hide immediately to ensure it's gone before any recording could possibly capture it
+            overlay.style.display = 'none';
+            overlay.remove(); // Remove from DOM
+
+            // Allow a tiny paint frame before requesting media
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    startChildRecording(config);
+                });
+            });
         };
     }
 
@@ -962,46 +985,54 @@ document.addEventListener('DOMContentLoaded', function () {
             audio: false,
             selfBrowserSurface: "include" // Hint to prioritize current tab
         }).then(stream => {
-            // Start Recording
-            mediaRecorder = new MediaRecorder(stream);
-            recordedChunks = [];
+            // Wait a moment for the overlay to disappear completely and UI to settle
+            // especially if the main thread was busy or browser lagging
+            setTimeout(() => {
+                // Safety cleanup
+                const residualApps = document.querySelectorAll('#rec-overlay');
+                residualApps.forEach(el => el.remove());
 
-            mediaRecorder.ondataavailable = e => {
-                if (e.data.size > 0) recordedChunks.push(e.data);
-            };
+                // Start Recording
+                mediaRecorder = new MediaRecorder(stream);
+                recordedChunks = [];
 
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                const name = (typeof TREE_NAME !== 'undefined') ? TREE_NAME : 'map';
-                a.download = `time-travel-${name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
-                document.body.appendChild(a);
-                a.click();
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
 
-                // Signal completion
-                if (window.opener) window.opener.postMessage({ action: 'RECORDING_COMPLETE' }, '*');
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    const name = (typeof TREE_NAME !== 'undefined') ? TREE_NAME : 'map';
+                    a.download = `time-travel-${name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
+                    document.body.appendChild(a);
+                    a.click();
 
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                    window.close();
-                }, 500);
-            };
+                    // Signal completion
+                    if (window.opener) window.opener.postMessage({ action: 'RECORDING_COMPLETE' }, '*');
 
-            mediaRecorder.start();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        window.close();
+                    }, 500);
+                };
 
-            // Start Playback
-            playDirection = config.direction;
-            isPlaying = true;
-            step();
+                mediaRecorder.start();
 
-            // Revert Title
-            if (typeof TREE_NAME !== 'undefined') {
-                document.title = "Time Travel Map - " + TREE_NAME;
-            }
+                // Start Playback
+                playDirection = config.direction;
+                isPlaying = true;
+                step();
+
+                // Revert Title
+                if (typeof TREE_NAME !== 'undefined') {
+                    document.title = "Time Travel Map - " + TREE_NAME;
+                }
+            }, 1000); // 1 second delay
 
             stream.getVideoTracks()[0].onended = () => {
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
