@@ -35,7 +35,7 @@ class Module extends AbstractModule implements ModuleCustomInterface, ModuleChar
     public const DEFAULT_INDI_TAGS = ['BIRT', 'CHR', 'BAPM', 'DEAT', 'BURI', 'CREM', 'RESI', 'EDUC', 'OCCU', 'CENS', 'EVEN'];
     public const DEFAULT_FAM_TAGS = ['MARR', 'DIV', 'CENS', 'RESI', 'EVEN'];
 
-    public const CUSTOM_VERSION = '1.0.7';
+    public const CUSTOM_VERSION = '1.0.8';
     public const CUSTOM_AUTHOR = 'Giulio Marcon';
     public const GITHUB_REPO = 'gmarcon/webtrees-time-travel-map';
     public const CUSTOM_SUPPORT_URL = 'https://github.com/gmarcon/webtrees-time-travel-map';
