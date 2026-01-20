@@ -108,6 +108,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Cluster Group
     let markersCluster = L.markerClusterGroup();
+    let centerMarkerLayer = L.layerGroup().addTo(map);
 
     let isPlaying = false;
     let playDirection = 1;
@@ -129,32 +130,30 @@ document.addEventListener('DOMContentLoaded', function () {
     function createCalloutIcon(person, showCallouts, angle = -90) {
         const birth = person.yearFrom || '?';
         const death = person.yearTo || '?';
-        let displayStyle = showCallouts ? '' : 'display:none;';
 
-        // Radial Positioning
-        const lineLength = 40; // Length of the leader line
-        const rad = angle * (Math.PI / 180);
+        if (!showCallouts) {
+            // Cluster Mode / Dot Only (if needed, though mainly handled by ClusterGroup default or custom logic)
+            // We can return a simple dot div
+            return L.divIcon({
+                className: 'custom-callout-icon',
+                html: `<div class="callout-dot"></div>`,
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
+            });
+        }
 
-        // Calculate bubble center position relative to dot
-        const bx = lineLength * Math.cos(rad);
-        const by = lineLength * Math.sin(rad);
-
-        // We use translate(-50%, -50%) to center the bubble on the end of the line
-        const bubbleParams = `transform: translate(${bx}px, ${by}px) translate(-50%, -50%);`;
+        // Hub & Spoke Mode: BUBBLE ONLY
+        // The dot is handled by the Center Marker. The line is handled by the Displacement Line.
+        // We just need the bubble, centered on the anchor (which is the displaced position).
 
         return L.divIcon({
             className: 'custom-callout-icon',
-            // Structure: Wrapper > Leader Line + Dot + Bubble
-            html: `<div class="callout-wrapper">
-                     <div class="leader-line" style="transform: rotate(${angle}deg); width: ${lineLength}px; ${displayStyle}"></div>
-                     <div class="callout-dot"></div>
-                     <div class="callout-bubble" style="${bubbleParams} ${displayStyle}">
+            html: `<div class="callout-bubble" style="transform: translate(-50%, -50%); display:block;">
                         <div class="person-name">${person.name}</div>
                         <span class="years">(${birth}-${death})</span>
-                     </div>
                    </div>`,
             iconSize: null,
-            iconAnchor: [0, 0] // Wrapper handles positioning
+            iconAnchor: [0, 0] // Centered on the point
         });
     }
 
@@ -415,17 +414,15 @@ document.addEventListener('DOMContentLoaded', function () {
             coordsMap[key].push(wrapper);
         });
 
-        // Clear existing markers/lines from map if switching modes or updating
-        // Logic: activeIds tracks people who SHOULD be on map. 
-        // We will rebuild mostly everything to be safe or update existing.
-
         // Mode Check
         if (showCallouts) {
-            // --- MODE: Displacement (Spider Layout) ---
+            // --- MODE: Displacement (Hub & Spoke) ---
             if (map.hasLayer(markersCluster)) {
                 map.removeLayer(markersCluster);
                 markersCluster.clearLayers();
             }
+            // Clear Center Dots
+            centerMarkerLayer.clearLayers();
 
             // 2. Calculate Final Positions (Handling Clusters manually)
             const finalPositions = {}; // personId -> { lat, lng, isDisplaced, origin: {lat,lng}, angle }
@@ -435,34 +432,46 @@ document.addEventListener('DOMContentLoaded', function () {
                 const originLat = cluster[0].pos.lat;
                 const originLng = cluster[0].pos.lng;
 
-                if (cluster.length === 1) {
-                    const p = cluster[0];
-                    finalPositions[p.person.id] = {
-                        lat: originLat,
-                        lng: originLng,
-                        isDisplaced: false,
-                        angle: -90 // Default to Top for single items
-                    };
-                } else {
-                    // Cluster
-                    cluster.sort((a, b) => {
-                        const yA = parseInt(a.person.yearFrom) || 0;
-                        const yB = parseInt(b.person.yearFrom) || 0;
-                        if (yA !== yB) return yA - yB;
-                        return a.person.id.localeCompare(b.person.id);
-                    });
+                // DRAW CENTER DOT for this location
+                const centerDot = L.circleMarker([originLat, originLng], {
+                    radius: 5,
+                    fillColor: '#0d6efd',
+                    color: '#fff',
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 1
+                });
+                centerDot.on('click', () => {
+                    // Maybe zoom in or show list?
+                    map.flyTo([originLat, originLng], map.getZoom() + 2);
+                });
+                centerMarkerLayer.addLayer(centerDot);
 
-                    cluster.forEach((item, index) => {
-                        const displaced = getDisplacedCoords(originLat, originLng, index, cluster.length);
-                        finalPositions[item.person.id] = {
-                            lat: displaced.lat,
-                            lng: displaced.lng,
-                            isDisplaced: true,
-                            origin: { lat: originLat, lng: originLng },
-                            angle: displaced.angle
-                        };
-                    });
-                }
+                // Even for single items, we might displace them slightly if we want consistent Bubble look? 
+                // Or if single, we just put bubble on top via getDisplaced(..., total=1)?
+                // Previous logic said if total <= 1 return center.
+
+                // Sort cluster
+                cluster.sort((a, b) => {
+                    const yA = parseInt(a.person.yearFrom) || 0;
+                    const yB = parseInt(b.person.yearFrom) || 0;
+                    if (yA !== yB) return yA - yB;
+                    return a.person.id.localeCompare(b.person.id);
+                });
+
+                cluster.forEach((item, index) => {
+                    // Always calculate displacement to handle spiral vs single
+                    // If total=1, getDisplacedCoords returns center, angle=0.
+                    const displaced = getDisplacedCoords(originLat, originLng, index, cluster.length);
+                    finalPositions[item.person.id] = {
+                        lat: displaced.lat,
+                        lng: displaced.lng,
+                        isDisplaced: true, // Always true to force line drawing logic if we want lines even for single? 
+                        // Wait, if single, origin == target. Line len = 0.
+                        origin: { lat: originLat, lng: originLng },
+                        angle: displaced.angle
+                    };
+                });
             });
 
             // 3. Update Markers & Lines
@@ -487,49 +496,47 @@ document.addEventListener('DOMContentLoaded', function () {
                 const target = finalPositions[person.id];
                 activeCoords.push([target.lat, target.lng]);
 
-                // Marker
+                // Bubble Marker
                 const newLatLng = new L.LatLng(target.lat, target.lng);
                 if (visibleMarkers[person.id]) {
                     const marker = visibleMarkers[person.id];
                     const oldLatLng = marker.getLatLng();
-                    // Small threshold to avoid jitter
-                    if (oldLatLng.distanceTo(newLatLng) > 1) {
+                    if (oldLatLng.distanceTo(newLatLng) > 0) {
                         marker.setLatLng(newLatLng);
                     }
-                    // ALWAYS update icon to ensure angle is correct if index/total changed
                     marker.setIcon(createCalloutIcon(person, true, target.angle));
-
                     if (!map.hasLayer(marker)) marker.addTo(map);
                 } else {
                     const marker = L.marker(newLatLng, {
                         icon: createCalloutIcon(person, true, target.angle)
                     });
                     marker.on('click', () => {
-                        const content = buildPopupContent(person);
-                        marker.bindPopup(content, { maxWidth: 350, minWidth: 250 }).openPopup();
+                        // Optional: Bring to front?
                     });
                     marker.addTo(map);
                     visibleMarkers[person.id] = marker;
                 }
 
-                // Displacement Line
-                if (target.isDisplaced) {
-                    const origin = target.origin;
+                // Displacement Line (Gray Line)
+                const origin = target.origin;
+                // Draw line only if distance > 0 (it will be 0 for single items not displaced)
+                // Actually, if we want "Hub and Spoke", we should verify if we want lines for single items?
+                // If single item, Dot is at Center. Bubble is at Center. Line length 0.
+                if (target.lat !== origin.lat || target.lng !== origin.lng) {
                     const linePoints = [[origin.lat, origin.lng], [target.lat, target.lng]];
-
                     if (displacementLines[person.id]) {
                         displacementLines[person.id].setLatLngs(linePoints);
                         if (!map.hasLayer(displacementLines[person.id])) displacementLines[person.id].addTo(map);
                     } else {
                         const line = L.polyline(linePoints, {
-                            color: '#666',
+                            color: '#999', // Gray
                             weight: 1,
-                            opacity: 0.6
+                            opacity: 0.8
                         }).addTo(map);
                         displacementLines[person.id] = line;
                     }
                 } else {
-                    // Remove line if exists
+                    // Remove line if exists (collapsed to center)
                     if (displacementLines[person.id]) {
                         map.removeLayer(displacementLines[person.id]);
                         delete displacementLines[person.id];
@@ -554,6 +561,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         } else {
             // --- MODE: Clustering (Leaflet.markercluster) ---
+            centerMarkerLayer.clearLayers();
 
             // Clean up displacement mode stuff
             Object.keys(visibleMarkers).forEach(id => {
@@ -578,17 +586,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const person = item.person;
                 const pos = item.pos;
                 activePos[person.id] = { lat: pos.lat, lng: pos.lng };
-
                 activeCoords.push([pos.lat, pos.lng]);
 
-                // Create standard marker or small circle for cluster
-                // Since "callout" is off, we can use a standard icon or simple dot
-                // Let's use the 'createCalloutIcon' but with hidden bubble as implemented or just a standard marker?
-                // The task implies "disable callouts", so we use the icon without bubble.
-                // Re-creating marker each time for cluster might be expensive but standard for cluster updates usually.
-
                 const marker = L.marker([pos.lat, pos.lng], {
-                    icon: createCalloutIcon(person, false) // False = Hide bubble
+                    icon: createCalloutIcon(person, false)
                 });
                 marker.bindPopup(buildPopupContent(person), { maxWidth: 350, minWidth: 250 });
                 clusterMarkers.push(marker);
@@ -599,11 +600,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 map.addLayer(markersCluster);
             }
 
-            // 4. Handle Parent Lines (Optional in cluster mode? Lines might look weird appearing from inside clusters)
             if (parentsCheck && parentsCheck.checked) {
-                // We can draw lines between exact positions, Leaflet handles lines 'under' clusters usually ok
-                // or we might want to disable them.
-                // Let's try to draw them.
                 drawParentLines(currentActive, activePos);
             }
 
