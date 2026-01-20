@@ -6,6 +6,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
+    // Check for recording mode immediately
+    if (new URLSearchParams(window.location.search).has('recording_mode')) {
+        document.body.classList.add('recording-mode');
+    }
+
     // Initialize Map
     const map = L.map('map', {
         fullscreenControl: false, // We use custom control
