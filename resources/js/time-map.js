@@ -320,6 +320,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Notify if in recording mode
                 if (window.opener && new URLSearchParams(window.location.search).has('recording_mode')) {
+                    console.log("Child sending READY");
                     window.opener.postMessage({ action: 'CHILD_READY' }, '*');
                 }
             })
@@ -760,15 +761,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (playDirection === 1 && currentYear >= maxYear) {
             isPlaying = false;
-            if (new URLSearchParams(window.location.search).has('recording_mode') && window.opener) {
-                window.opener.postMessage({ action: 'PLAYBACK_FINISHED' }, '*');
+            // If we are recording in child mode
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
             }
             return;
         }
         if (playDirection === -1 && currentYear <= minYear) {
             isPlaying = false;
-            if (new URLSearchParams(window.location.search).has('recording_mode') && window.opener) {
-                window.opener.postMessage({ action: 'PLAYBACK_FINISHED' }, '*');
+            // If we are recording in child mode
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
             }
             return;
         }
@@ -854,146 +857,164 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function startRecordingSequence(direction) {
         // 1. Open Popup
-        const width = 1200;
-        const height = 800;
-        const left = (screen.width - width) / 2;
-        const top = (screen.height - height) / 2;
-
+        // 1. Open Tab
         const url = new URL(window.location.href);
         url.searchParams.set('recording_mode', '1');
 
-        // Open in new tab (no window features = tab usually)
-        const recWin = window.open(url.toString(), '_blank');
+        // Open in new tab with explicit name to ensure opener is preserved (avoid _blank implicit noopener)
+        const recWin = window.open(url.toString(), 'RecordingTab');
 
         const messageHandler = (event) => {
             if (event.source !== recWin) return;
 
             if (event.data.action === 'CHILD_READY') {
-                // 3. Request Permission
-                navigator.mediaDevices.getDisplayMedia({
-                    video: { cursor: "never" },
-                    audio: false
-                }).then(stream => {
-                    // 4. Start Recording
-                    mediaRecorder = new MediaRecorder(stream);
-                    recordedChunks = [];
+                // 2. Send Config to Child
+                const center = map.getCenter();
+                const zoom = map.getZoom();
 
-                    mediaRecorder.ondataavailable = e => {
-                        if (e.data.size > 0) recordedChunks.push(e.data);
-                    };
-
-                    mediaRecorder.onstop = () => {
-                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.style.display = 'none';
-                        a.href = url;
-                        // Use a nice filename
-                        const name = (typeof TREE_NAME !== 'undefined') ? TREE_NAME : 'map';
-                        a.download = `time-travel-${name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
-                        document.body.appendChild(a);
-                        a.click();
-                        setTimeout(() => {
-                            document.body.removeChild(a);
-                            window.URL.revokeObjectURL(url);
-                        }, 100);
-
-                        // Cleanup
-                        recWin.close(); // Ensure window closes
-                        window.removeEventListener('message', messageHandler);
-
-                        // Toggle off record button
-                        if (recordBtn) recordBtn.classList.remove('active');
-                    };
-
-                    mediaRecorder.start();
-
-                    // 5. Tell Child to Play
-                    // Get current map state
-                    const center = map.getCenter();
-                    const zoom = map.getZoom();
-
-                    recWin.postMessage({
-                        action: 'START_PLAYBACK',
-                        startYear: parseInt(slider.value),
-                        direction: direction,
-                        speed: parseInt(speedSelect.value),
-                        showParents: parentsCheck ? parentsCheck.checked : false,
-                        showCallouts: calloutsCheck ? calloutsCheck.checked : true,
-                        autozoom: autozoomCheck ? autozoomCheck.checked : false,
-                        center: { lat: center.lat, lng: center.lng },
-                        zoom: zoom
-                    }, '*');
-
-                    // Stop recording if the user stops sharing via browser UI
-                    stream.getVideoTracks()[0].onended = () => {
-                        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                            mediaRecorder.stop();
-                        }
-                    };
-
-                }).catch(err => {
-                    console.error("Error/Cancel recording:", err);
-                    recWin.close();
-                    window.removeEventListener('message', messageHandler);
-                });
+                recWin.postMessage({
+                    action: 'INIT_RECORDING_SESSION',
+                    startYear: parseInt(slider.value),
+                    direction: direction,
+                    speed: parseInt(speedSelect.value),
+                    showParents: parentsCheck ? parentsCheck.checked : false,
+                    showCallouts: calloutsCheck ? calloutsCheck.checked : true,
+                    autozoom: autozoomCheck ? autozoomCheck.checked : false,
+                    center: { lat: center.lat, lng: center.lng },
+                    zoom: zoom
+                }, '*');
             }
 
-            if (event.data.action === 'PLAYBACK_FINISHED') {
-                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop();
-                    // Stop tracks
-                    if (mediaRecorder.stream) {
-                        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                    }
-                }
+            if (event.data.action === 'RECORDING_COMPLETE') {
+                window.removeEventListener('message', messageHandler);
+                if (recordBtn) recordBtn.classList.remove('active');
             }
         };
 
         window.addEventListener('message', messageHandler);
     }
 
-    // Child Window Listener
-    window.addEventListener('message', (event) => {
-        if (event.data.action === 'START_PLAYBACK') {
-            const data = event.data;
-            if (slider) {
-                slider.value = data.startYear;
-                currentYear = data.startYear;
-                yearDisplay.innerText = currentYear;
+    // Child Logic for Recording
+    if (new URLSearchParams(window.location.search).has('recording_mode')) {
+        // Signal to parent that child is ready
+        if (window.opener) {
+            window.opener.postMessage({ action: 'CHILD_READY' }, '*');
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.data.action === 'INIT_RECORDING_SESSION') {
+                setupRecordingUI(event.data);
             }
-            if (parentsCheck) parentsCheck.checked = data.showParents;
-            if (calloutsCheck) calloutsCheck.checked = data.showCallouts;
+        });
+    }
 
-            // Sync autozoom - directly set property and trigger if needed? 
-            // Usually step() handles autozoom if checked.
-            if (autozoomCheck) {
-                autozoomCheck.checked = data.autozoom;
-            }
+    function setupRecordingUI(config) {
+        // Apply Map State Immediately
+        if (config.center && config.zoom) {
+            isProgrammaticZoom = true;
+            map.setView([config.center.lat, config.center.lng], config.zoom);
+            setTimeout(() => { isProgrammaticZoom = false; }, 300);
+        }
+        if (slider) {
+            slider.value = config.startYear;
+            currentYear = config.startYear;
+            yearDisplay.innerText = currentYear;
+            updateMap(currentYear);
+        }
+        // Sync Controls
+        if (parentsCheck) parentsCheck.checked = config.showParents;
+        if (calloutsCheck) calloutsCheck.checked = config.showCallouts;
+        if (autozoomCheck) autozoomCheck.checked = config.autozoom;
+        if (speedSelect) speedSelect.value = config.speed;
 
-            if (speedSelect) speedSelect.value = data.speed;
+        // Prevent duplicates
+        const existing = document.getElementById('rec-overlay');
+        if (existing) existing.remove();
 
-            // Apply View
-            if (data.center && data.zoom) {
-                isProgrammaticZoom = true;
-                map.setView([data.center.lat, data.center.lng], data.zoom);
-                setTimeout(() => { isProgrammaticZoom = false; }, 300);
-            }
+        // Create Overlay Button
+        const overlay = document.createElement('div');
+        overlay.id = 'rec-overlay';
+        // Z-Index must match or exceed the map wrapper's max int
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:2147483647;display:flex;justify-content:center;align-items:center;flex-direction:column;color:white;';
 
-            // Restore title for the actual recording/viewing (optional)
+        const btn = document.createElement('button');
+        btn.innerText = 'START RECORDING';
+        btn.className = 'btn btn-danger btn-lg';
+        btn.style.cssText = 'font-size: 2rem; padding: 20px 40px; border-radius: 50px;';
+
+        const hint = document.createElement('p');
+        hint.innerText = 'Select the tab with name "SELECT THIS AND PRESS SHARE" in the next window and press share.';
+        hint.style.cssText = 'margin-top: 20px; font-size: 1.2rem; opacity: 0.8;';
+
+        overlay.appendChild(btn);
+        overlay.appendChild(hint);
+        document.body.appendChild(overlay);
+
+        btn.onclick = () => {
+            overlay.remove();
+            startChildRecording(config);
+        };
+    }
+
+    function startChildRecording(config) {
+        navigator.mediaDevices.getDisplayMedia({
+            video: { cursor: "never" },
+            audio: false,
+            selfBrowserSurface: "include" // Hint to prioritize current tab
+        }).then(stream => {
+            // Start Recording
+            mediaRecorder = new MediaRecorder(stream);
+            recordedChunks = [];
+
+            mediaRecorder.ondataavailable = e => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                const name = (typeof TREE_NAME !== 'undefined') ? TREE_NAME : 'map';
+                a.download = `time-travel-${name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
+                document.body.appendChild(a);
+                a.click();
+
+                // Signal completion
+                if (window.opener) window.opener.postMessage({ action: 'RECORDING_COMPLETE' }, '*');
+
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    window.close();
+                }, 500);
+            };
+
+            mediaRecorder.start();
+
+            // Start Playback
+            playDirection = config.direction;
+            isPlaying = true;
+            step();
+
+            // Revert Title
             if (typeof TREE_NAME !== 'undefined') {
                 document.title = "Time Travel Map - " + TREE_NAME;
             }
 
-            // Force one update before starting to ensure visual state is correct
-            updateMap(currentYear);
+            stream.getVideoTracks()[0].onended = () => {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+            };
+        }).catch(err => {
+            console.error(err);
+            alert("Recording cancelled.");
+            window.close();
+        });
+    }
 
-            // Start
-            playDirection = data.direction;
-            isPlaying = true;
-            step();
-        }
-    });
 
     if (calloutsCheck) {
         calloutsCheck.addEventListener('change', () => {
