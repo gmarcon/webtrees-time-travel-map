@@ -962,7 +962,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Apply View
             if (data.center && data.zoom) {
+                isProgrammaticZoom = true;
                 map.setView([data.center.lat, data.center.lng], data.zoom);
+                setTimeout(() => { isProgrammaticZoom = false; }, 300);
             }
 
             // Force one update before starting to ensure visual state is correct
