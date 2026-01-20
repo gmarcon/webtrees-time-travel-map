@@ -366,7 +366,21 @@ document.addEventListener('DOMContentLoaded', function () {
         // Radius grows with square root of index to maintain constant density
         // Base padding + expansion
         // Tuning: 50px start, + 30px scaling
-        const radius = 50 + (30 * Math.sqrt(index));
+        let radius = 50 + (30 * Math.sqrt(index));
+
+        // MAX RADIUS CONSTRAINT: 10km diameter (5km radius)
+        // 1 degree latitude is approx 111km
+        // 5km is approx 5/111 = 0.045045 degrees
+        const centerLatLng = L.latLng(centerLat, centerLng);
+        const offsetLatLng = L.latLng(centerLat + 0.045, centerLng);
+        const centerP = map.latLngToLayerPoint(centerLatLng);
+        const offsetP = map.latLngToLayerPoint(offsetLatLng);
+        const maxRadiusPx = Math.abs(offsetP.y - centerP.y);
+
+        // Clamp the radius
+        if (radius > maxRadiusPx) {
+            radius = maxRadiusPx;
+        }
 
         // Calculate new pixel position
         const newX = centerPoint.x + radius * Math.cos(angleRad);
