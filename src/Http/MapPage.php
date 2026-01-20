@@ -69,9 +69,6 @@ class MapPage implements RequestHandlerInterface
         $map = view('modules/time-travel-map::chart', [
             'data_url' => route(Module::class . '::data', [
                 'tree' => $tree->name(),
-                'root_person_id' => $xref,
-                'direction' => $direction,
-                'generations' => $generations,
             ]),
             'tree_name' => $tree->name(),
             'xref' => $xref,
