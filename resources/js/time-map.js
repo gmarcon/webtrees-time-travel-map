@@ -351,21 +351,22 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function getDisplacedCoords(centerLat, centerLng, index, total) {
-        if (total <= 1) return { lat: centerLat, lng: centerLng, angle: 0 };
+        // Default: Single Item -> Displace North
+        let radius = 50;
+        let angleDeg = -90; // North
+        let angleRad = angleDeg * (Math.PI / 180);
+
+        if (total > 1) {
+            // Spiral Layout (Phyllotaxis / Archimedean)
+            const angleStep = 137.5; // Golden Angle in degrees
+            angleDeg = index * angleStep;
+            angleRad = angleDeg * (Math.PI / 180);
+            // Radius grows with square root of index
+            radius = 50 + (30 * Math.sqrt(index));
+        }
 
         // Convert center to pixel point
         const centerPoint = map.latLngToLayerPoint([centerLat, centerLng]);
-
-        // Spiral Layout (Phyllotaxis / Archimedean)
-        // More compact than a single circle for large numbers
-        const angleStep = 137.5; // Golden Angle in degrees
-        const angleDeg = index * angleStep;
-        const angleRad = angleDeg * (Math.PI / 180);
-
-        // Radius grows with square root of index to maintain constant density
-        // Base padding + expansion
-        // Tuning: 50px start, + 30px scaling
-        let radius = 50 + (30 * Math.sqrt(index));
 
         // MAX RADIUS CONSTRAINT: 10km diameter (5km radius)
         // 1 degree latitude is approx 111km
@@ -447,11 +448,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 centerMarkerLayer.addLayer(centerDot);
 
-                // Even for single items, we might displace them slightly if we want consistent Bubble look? 
-                // Or if single, we just put bubble on top via getDisplaced(..., total=1)?
-                // Previous logic said if total <= 1 return center.
-
-                // Sort cluster
+                // Sort cluster to keep consistent order
                 cluster.sort((a, b) => {
                     const yA = parseInt(a.person.yearFrom) || 0;
                     const yB = parseInt(b.person.yearFrom) || 0;
@@ -459,15 +456,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     return a.person.id.localeCompare(b.person.id);
                 });
 
+                // Apply Displacement to ALL items (Single or Cluster)
                 cluster.forEach((item, index) => {
-                    // Always calculate displacement to handle spiral vs single
-                    // If total=1, getDisplacedCoords returns center, angle=0.
                     const displaced = getDisplacedCoords(originLat, originLng, index, cluster.length);
                     finalPositions[item.person.id] = {
                         lat: displaced.lat,
                         lng: displaced.lng,
-                        isDisplaced: true, // Always true to force line drawing logic if we want lines even for single? 
-                        // Wait, if single, origin == target. Line len = 0.
+                        isDisplaced: true, // Always true now for consistency
                         origin: { lat: originLat, lng: originLng },
                         angle: displaced.angle
                     };
