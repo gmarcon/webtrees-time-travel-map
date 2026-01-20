@@ -9,6 +9,18 @@ document.addEventListener('DOMContentLoaded', function () {
     // Check for recording mode immediately
     if (new URLSearchParams(window.location.search).has('recording_mode')) {
         document.body.classList.add('recording-mode');
+        document.documentElement.classList.add('recording-mode-html');
+        // Help user identify this tab in the sharing picker
+        document.title = "SELECT THIS AND PRESS SHARE";
+
+        // Try to move focus back to the main window where the permission prompt appears
+        if (window.opener) {
+            try {
+                window.opener.focus();
+            } catch (e) {
+                console.log("Could not focus opener window");
+            }
+        }
     }
 
     // Initialize Map
@@ -850,7 +862,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const url = new URL(window.location.href);
         url.searchParams.set('recording_mode', '1');
 
-        const recWin = window.open(url.toString(), 'RecordingWindow', `width=${width},height=${height},top=${top},left=${left},menubar=no,toolbar=no,location=no,status=no`);
+        // Open in new tab (no window features = tab usually)
+        const recWin = window.open(url.toString(), '_blank');
 
         const messageHandler = (event) => {
             if (event.source !== recWin) return;
@@ -965,6 +978,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 isProgrammaticZoom = true;
                 map.setView([data.center.lat, data.center.lng], data.zoom);
                 setTimeout(() => { isProgrammaticZoom = false; }, 300);
+            }
+
+            // Restore title for the actual recording/viewing (optional)
+            if (typeof TREE_NAME !== 'undefined') {
+                document.title = "Time Travel Map - " + TREE_NAME;
             }
 
             // Force one update before starting to ensure visual state is correct

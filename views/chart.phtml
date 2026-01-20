@@ -138,23 +138,41 @@ use Fisharebest\Webtrees\I18N;
         }
 
         /* Recording Mode Styles */
-        body.recording-mode {
+        body.recording-mode, html.recording-mode-html {
             overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 100% !important;
+            background: #000 !important; /* Black background to hide gaps */
         }
+        
         /* NOTE: We cannot simply hide body > * because the map wrapper is nested inside them. 
            Instead, we make the wrapper fixed full screen and z-index it above everything. */
-        
         body.recording-mode #time-travel-wrapper {
             position: fixed !important;
             top: 0;
             left: 0;
-            width: 100vw !important;
-            height: 100vh !important;
+            right: 0;
+            bottom: 0;
+            width: 100% !important;
+            height: 100% !important;
             z-index: 2147483647; /* Max Z-Index */
             margin: 0 !important;
             padding: 0 !important;
             background: white;
+            box-sizing: border-box;
         }
+        
+        /* Ensure internals fill the space */
+        body.recording-mode #map-container,
+        body.recording-mode #map {
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+        }
+
         body.recording-mode #controls-container,
         body.recording-mode .leaflet-control-zoom,
         body.recording-mode .leaflet-control-custom-fullscreen,
