@@ -116,6 +116,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let maxYear = new Date().getFullYear();
     let currentYear = 1800;
 
+    // Flag to distinguish code-driven zooms from user interaction
+    let isProgrammaticZoom = false;
+
     // Show loading
     function showLoading() {
         if (loadingOverlay) loadingOverlay.style.display = 'flex';
@@ -314,7 +317,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 [Math.min(...allLat), Math.min(...allLng)],
                 [Math.max(...allLat), Math.max(...allLng)]
             );
+            isProgrammaticZoom = true;
             map.fitBounds(bounds, { padding: [50, 50] });
+            setTimeout(() => { isProgrammaticZoom = false; }, 100);
         }
     }
 
@@ -339,6 +344,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         return { lat: bestEvent.coords[0], lng: bestEvent.coords[1], event: bestEvent };
     }
+
+    // List of events that indicate a user might be trying to override autozoom (zoom or drag)
+    map.on('zoomstart', function () {
+        if (!isProgrammaticZoom && autozoomCheck && autozoomCheck.checked) {
+            autozoomCheck.checked = false;
+        }
+    });
 
     // Zoom listener to re-calculate positions
     map.on('zoomend', function () {
@@ -548,7 +560,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (autozoomCheck && autozoomCheck.checked) {
                 if (activeCoords.length > 0) {
                     const bounds = L.latLngBounds(activeCoords);
+                    isProgrammaticZoom = true;
                     map.fitBounds(bounds, { padding: [100, 100], animate: true, duration: 1 });
+                    setTimeout(() => { isProgrammaticZoom = false; }, 100);
                 }
             }
 
@@ -600,7 +614,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (autozoomCheck && autozoomCheck.checked) {
                 if (activeCoords.length > 0) {
                     const bounds = L.latLngBounds(activeCoords);
+                    isProgrammaticZoom = true;
                     map.fitBounds(bounds, { padding: [100, 100], animate: true, duration: 1 });
+                    setTimeout(() => { isProgrammaticZoom = false; }, 100);
                 }
             }
         }
