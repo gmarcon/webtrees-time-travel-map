@@ -349,8 +349,8 @@ document.addEventListener('DOMContentLoaded', function () {
     map.on('zoomstart', function () {
         if (!isProgrammaticZoom && autozoomCheck && autozoomCheck.checked) {
             autozoomCheck.checked = false;
-            // Visual Effect
-            if (autozoomCheck.parentElement) {
+            // Visual Effect only if playing
+            if (isPlaying && autozoomCheck.parentElement) {
                 const label = autozoomCheck.parentElement.querySelector('label') || autozoomCheck.parentElement;
                 label.classList.add('blink-text');
             }
