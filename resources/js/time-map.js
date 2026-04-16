@@ -29,7 +29,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }).setView([20, 0], 2);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        referrerPolicy: 'unsafe-url'
     }).addTo(map);
 
     // Custom Fullscreen Control
