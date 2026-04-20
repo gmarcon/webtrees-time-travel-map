@@ -19,6 +19,7 @@ An interactive map with a timeline for exploring the geographic history of your 
 - **Autoplay**: Automatically advances the timeline through time forward or backwards in time at a configurable speed.
 - **Event Visualization**: Displays birth, death, and marriage events on the map.
 - **Customizable**: Configure which events to display and other display options.
+- **Video Recording**: Allows to export a video file (recorded in the browser) of the autoplay mode.
 
 ## Installation
 
@@ -42,4 +43,4 @@ An interactive map with a timeline for exploring the geographic history of your 
 5. Click **View** to generate the map and start exploring!
 
 ![time-travel-map-start](assets/time-travel-map-start.jpg)
-*Fig. 4: Selection of the paramters to start the exploration
+*Fig. 4: Selection of the parameters to start the exploration
